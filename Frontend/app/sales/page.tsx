@@ -5,14 +5,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
   Plus,
   Search,
   Trash2,
@@ -25,6 +17,16 @@ import {
   Banknote,
 } from 'lucide-react'
 import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts'
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -34,8 +36,9 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { format } from 'date-fns'
-import { createPayment, createSale, createSaleItem, deleteSale, fetchBootstrapData, fetchSales } from '@/lib/api'
+import { fetchBootstrapData } from '@/lib/api'
 import { Sale, SaleItem, Product, Customer } from '@/lib/store'
+import { CreateSaleModal } from '@/components/create-sale-modal'
 
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([])
@@ -45,21 +48,8 @@ export default function SalesPage() {
   const [filterStatus, setFilterStatus] = useState<'all' | 'paid' | 'unpaid'>('all')
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<'all' | 'cash' | 'online'>('all')
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [selectedCustomer, setSelectedCustomer] = useState<string>('')
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash')
-  const [selectedProducts, setSelectedProducts] = useState<
-    Array<{ productId: string; quantity: number }>
-  >([])
-  const [customItems, setCustomItems] = useState<
-    Array<{ name: string; quantity: number; unitPrice: number }>
-  >([])
-  const [itemsMode, setItemsMode] = useState<'inventory' | 'custom'>('inventory')
-  const [totalAmountInput, setTotalAmountInput] = useState<string>('0')
-  const [paidAmountInput, setPaidAmountInput] = useState<string>('0')
-  const [autoTotal, setAutoTotal] = useState(true)
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
-  const [creatingSale, setCreatingSale] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -114,199 +104,76 @@ export default function SalesPage() {
     return { totalAmount, paidAmount, unpaidAmount, cashAmount, onlineAmount }
   }, [filteredSales])
 
-  const handleCreateSale = async () => {
-    if (!selectedCustomer) {
-      alert('Please select a registered customer for this sale.')
-      return
-    }
-    if (itemsMode === 'inventory' && selectedProducts.length === 0) {
-      alert('Please add at least one inventory item to the sale.')
-      return
-    }
-    if (itemsMode === 'custom' && customItems.length === 0) {
-      alert('Please add at least one item to the sale.')
-      return
-    }
-
-    const customer = customers.find((c) => c.id === selectedCustomer)
-    if (!customer) {
-      alert('The selected customer is not registered.')
-      return
-    }
-
-    const items: SaleItem[] =
-      itemsMode === 'inventory'
-        ? (selectedProducts
-            .map((item) => {
-              const product = products.find((p) => p.id === item.productId)
-              if (!product || item.quantity < 1) return null
-              return {
-                productId: product.id,
-                productName: product.name,
-                quantity: item.quantity,
-                unitPrice: product.price,
-                subtotal: product.price * item.quantity,
-              }
-            })
-            .filter((item) => item !== null) as SaleItem[])
-        : (customItems
-            .map((item) => {
-              if (!item.name.trim() || item.quantity < 1) return null
-              return {
-                productId: '',
-                productName: item.name.trim(),
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                subtotal: item.unitPrice * item.quantity,
-              }
-            })
-            .filter((item) => item !== null) as SaleItem[])
-
-    if (items.length === 0) {
-      alert('Please choose valid items and quantities before creating the sale.')
-      return
-    }
-
-    const computedTotalAmount = Number(items.reduce((sum, item) => sum + item.subtotal, 0).toFixed(2))
-    const totalAmount = autoTotal ? computedTotalAmount : Number(totalAmountInput || 0)
-    const paidAmount = Number(paidAmountInput || 0)
-    const normalizedPaidAmount = Math.max(0, Math.min(paidAmount, totalAmount))
-    const paymentStatus: 'paid' | 'unpaid' | 'partial' =
-      normalizedPaidAmount <= 0
-        ? 'unpaid'
-        : normalizedPaidAmount >= totalAmount
-          ? 'paid'
-          : 'partial'
-    setCreatingSale(true)
-
-    try {
-      const createdSale = await createSale({
-        customer: customer.id,
-        customer_name: customer.name,
-        total_amount: totalAmount,
-        paid_amount: normalizedPaidAmount,
-        payment_method: paymentMethod,
-        payment_status: paymentStatus,
-        date: new Date().toISOString(),
-      })
-
-      const saleId = createdSale.id as string
-
-      await Promise.all(
-        items.map((item) =>
-          createSaleItem({
-            sale: saleId,
-            product: itemsMode === 'inventory' ? item.productId : null,
-            product_name: item.productName,
-            quantity: item.quantity,
-            unit_price: item.unitPrice,
-            subtotal: item.subtotal,
-          })
-        )
-      )
-
-      if (normalizedPaidAmount > 0) {
-        await createPayment({
-          sale: saleId,
-          amount: normalizedPaidAmount,
-          method: paymentMethod,
-          date: new Date().toISOString(),
-        })
+  const weeklyRevenueData = useMemo(() => {
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const date = new Date()
+      date.setDate(date.getDate() - (6 - index))
+      const key = date.toDateString()
+      return {
+        key,
+        label: format(date, 'dd MMM'),
+        cash: 0,
+        online: 0,
+        unpaid: 0,
       }
+    })
 
-      const updatedSales = await fetchSales()
-      setSales(updatedSales)
-      resetForm()
-    } catch (e) {
-      console.error('Failed to create sale:', e)
-      const message = e instanceof Error ? e.message : 'Failed to create sale'
-      alert(message)
-    } finally {
-      setCreatingSale(false)
+    const revenueMap = new Map(days.map((day) => [day.key, { ...day }]))
+
+    sales.forEach((sale) => {
+      const saleDate = new Date(sale.date)
+      const key = saleDate.toDateString()
+      const entry = revenueMap.get(key)
+      if (!entry) return
+
+      const amount = sale.totalAmount || 0
+      if (sale.paymentStatus === 'paid') {
+        if (sale.paymentMethod === 'cash') {
+          entry.cash += amount
+        } else {
+          entry.online += amount
+        }
+      } else {
+        entry.unpaid += amount
+      }
+    })
+
+    return Array.from(revenueMap.values())
+  }, [sales])
+
+  const handleCreateSale = (saleData: any) => {
+    const items: SaleItem[] = saleData.items.map((item: any) => ({
+      productId: '',
+      productName: item.name,
+      quantity: item.quantity,
+      unitPrice: item.price,
+      subtotal: item.total,
+    }))
+
+    const newSale: Sale = {
+      id: `SALE-${Date.now()}`,
+      customerId: '',
+      customerName: saleData.customerName,
+      totalAmount: saleData.total,
+      paidAmount: saleData.paymentStatus === 'paid' ? saleData.total : 0,
+      paymentMethod: saleData.paymentMethod as 'cash' | 'online',
+      paymentStatus: saleData.paymentStatus as 'paid' | 'unpaid' | 'partial',
+      items,
+      date: new Date(),
+      payments: saleData.paymentStatus === 'paid' 
+        ? [{ id: `pay-${Date.now()}`, amount: saleData.total, method: saleData.paymentMethod, date: new Date() }]
+        : [],
+      notes: saleData.notes,
     }
+
+    setSales([newSale, ...sales])
+    setIsCreateModalOpen(false)
   }
 
-  const resetForm = () => {
-    setSelectedCustomer('')
-    setPaymentMethod('cash')
-    setSelectedProducts([])
-    setCustomItems([])
-    setItemsMode('inventory')
-    setAutoTotal(true)
-    setTotalAmountInput('0')
-    setPaidAmountInput('0')
-    setIsCreateDialogOpen(false)
-  }
-
-  const handleDeleteSale = async (id: string) => {
+  const handleDeleteSale = (id: string) => {
     if (confirm('Are you sure you want to delete this sale?')) {
-      try {
-        await deleteSale(id)
-        const updatedSales = await fetchSales()
-        setSales(updatedSales)
-      } catch (error) {
-        console.error('Failed to delete sale:', error)
-        alert(error instanceof Error ? error.message : 'Failed to delete sale')
-      }
+      setSales(sales.filter((s) => s.id !== id))
     }
-  }
-
-  const addProductToOrder = () => {
-    setSelectedProducts([
-      ...selectedProducts,
-      { productId: '', quantity: 1 },
-    ])
-  }
-
-  const updateProductInOrder = (
-    index: number,
-    field: 'productId' | 'quantity',
-    value: string | number
-  ) => {
-    const updated = [...selectedProducts]
-    if (field === 'productId') {
-      updated[index].productId = value as string
-    } else {
-      updated[index].quantity = value as number
-    }
-    setSelectedProducts(updated)
-  }
-
-  const removeProductFromOrder = (index: number) => {
-    setSelectedProducts(selectedProducts.filter((_, i) => i !== index))
-  }
-
-  const orderTotal = selectedProducts.reduce((sum, item) => {
-    const product = products.find((p) => p.id === item.productId)
-    return sum + (product ? product.price * item.quantity : 0)
-  }, 0)
-
-  const customTotal = customItems.reduce((sum, item) => sum + (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0), 0)
-
-  useEffect(() => {
-    const computed = itemsMode === 'inventory' ? orderTotal : customTotal
-    if (autoTotal) {
-      setTotalAmountInput(String(Math.round(computed * 100) / 100))
-      setPaidAmountInput(String(Math.round(computed * 100) / 100))
-    }
-  }, [orderTotal, customTotal, autoTotal, itemsMode])
-
-  const addCustomItem = () => {
-    setCustomItems([...customItems, { name: '', quantity: 1, unitPrice: 0 }])
-  }
-
-  const updateCustomItem = (
-    index: number,
-    field: 'name' | 'quantity' | 'unitPrice',
-    value: string | number
-  ) => {
-    const updated = [...customItems]
-    ;(updated[index] as any)[field] = value
-    setCustomItems(updated)
-  }
-
-  const removeCustomItem = (index: number) => {
-    setCustomItems(customItems.filter((_, i) => i !== index))
   }
 
   return (
@@ -318,7 +185,7 @@ export default function SalesPage() {
           <p className="text-sm text-muted-foreground">Manage sales and track payments</p>
         </div>
         <Button
-          onClick={() => setIsCreateDialogOpen(true)}
+          onClick={() => setIsCreateModalOpen(true)}
           className="gap-2"
         >
           <Plus className="w-4 h-4" />
@@ -326,8 +193,16 @@ export default function SalesPage() {
         </Button>
       </div>
 
+      <CreateSaleModal
+        open={isCreateModalOpen}
+        onOpenChange={setIsCreateModalOpen}
+        customers={customers}
+        products={products}
+        onCreateSale={handleCreateSale}
+      />
+
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         <Card className="border-0 shadow-sm">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -336,8 +211,21 @@ export default function SalesPage() {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Total Sales</p>
+                <p className="text-lg font-bold">{filteredSales.length.toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">sales</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-0 shadow-sm">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Total Amount</p>
                 <p className="text-lg font-bold">Rs {filteredTotals.totalAmount.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">{filteredSales.length} sales</p>
               </div>
             </div>
           </CardContent>
@@ -396,284 +284,103 @@ export default function SalesPage() {
         </Card>
       </div>
 
-      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle>Create New Sale</DialogTitle>
-            <DialogDescription>
-              Add items either from inventory or by typing ingredients/items. You can also manually set total and paid amount.
-            </DialogDescription>
-          </DialogHeader>
+      {/* Create Sale Form */}
+      {/* This is now handled by CreateSaleModal component above */}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Card className="border-0 shadow-sm">
+        <CardContent className="p-4">
+          <div className="flex flex-col gap-2">
             <div>
-              <label className="text-sm font-medium">Select Customer</label>
-              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
-                <SelectTrigger className="mt-2 bg-white">
-                  <SelectValue placeholder="Choose a customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.length > 0 ? (
-                    customers.map((customer) => (
-                      <SelectItem key={customer.id} value={customer.id}>
-                        {customer.name} ({customer.phone})
-                      </SelectItem>
-                    ))
-                  ) : (
-                    <SelectItem value="no-customers-available" disabled>
-                      No registered customers
-                    </SelectItem>
-                  )}
-                </SelectContent>
-              </Select>
-              {customers.length === 0 && (
-                <p className="text-xs text-red-600 mt-2">No registered customers available yet.</p>
-              )}
+              <h3 className="text-lg font-semibold">Weekly Revenue Breakdown</h3>
+              <p className="text-sm text-muted-foreground">Daily revenue by payment method over the last 7 days</p>
             </div>
 
-            <div>
-              <label className="text-sm font-medium">Payment Method</label>
-              <Select
-                value={paymentMethod}
-                onValueChange={(value) => setPaymentMethod(value as 'cash' | 'online')}
-              >
-                <SelectTrigger className="mt-2 bg-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="online">Online</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="w-full h-[360px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={weeklyRevenueData} margin={{ top: 20, right: 30, left: 20, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+                  <XAxis
+                    dataKey="label"
+                    stroke="var(--muted-foreground)"
+                    style={{ fontSize: '12px' }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    stroke="var(--muted-foreground)"
+                    style={{ fontSize: '12px' }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(value) => `Rs ${value.toLocaleString()}`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'var(--card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+                    }}
+                    formatter={(value, name) => [`Rs ${value.toLocaleString()}`, name]}
+                    labelStyle={{ color: 'var(--foreground)', fontWeight: '600' }}
+                  />
+                  <Legend
+                    verticalAlign="top"
+                    align="right"
+                    height={36}
+                    wrapperStyle={{ paddingBottom: '10px' }}
+                    iconType="rect"
+                  />
+                  <Bar
+                    dataKey="cash"
+                    name="Cash"
+                    fill="#10b981"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={60}
+                  />
+                  <Bar
+                    dataKey="online"
+                    name="Online"
+                    fill="#3b82f6"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={60}
+                  />
+                  <Bar
+                    dataKey="unpaid"
+                    name="Unpaid"
+                    fill="#f59e0b"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={60}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
-          </div>
 
-          <div className="flex gap-2">
-            <Button
-              type="button"
-              variant={itemsMode === 'inventory' ? 'default' : 'outline'}
-              onClick={() => setItemsMode('inventory')}
-            >
-              Inventory items
-            </Button>
-            <Button
-              type="button"
-              variant={itemsMode === 'custom' ? 'default' : 'outline'}
-              onClick={() => setItemsMode('custom')}
-            >
-              Type ingredients/items
-            </Button>
-          </div>
-
-          {itemsMode === 'inventory' ? (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Items</label>
-                <span className="text-xs text-muted-foreground">Select from inventory.</span>
-              </div>
-
-              {selectedProducts.length === 0 && (
-                <div className="rounded-lg border border-dashed border-muted p-4 text-sm text-muted-foreground">
-                  Add sale items and quantities to build the order.
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <div className="flex items-center gap-3 p-3 bg-emerald-50 rounded-lg border border-emerald-200">
+                <div className="w-4 h-4 rounded bg-emerald-500" />
+                <div>
+                  <p className="text-sm font-medium text-emerald-800">Cash</p>
+                  <p className="text-xs text-emerald-600">Direct payments</p>
                 </div>
-              )}
-
-              {selectedProducts.map((item, index) => {
-                const product = products.find((p) => p.id === item.productId)
-                const lineTotal = product ? product.price * item.quantity : 0
-                return (
-                  <div key={index} className="flex flex-col gap-3 bg-white p-3 rounded-lg border">
-                    <div className="flex gap-3 items-end">
-                      <div className="flex-1">
-                        <Select
-                          value={item.productId}
-                          onValueChange={(value) => updateProductInOrder(index, 'productId', value)}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select product" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {products.length > 0 ? (
-                              products.map((product) => (
-                                <SelectItem key={product.id} value={product.id}>
-                                  {product.name} (Rs {product.price})
-                                </SelectItem>
-                              ))
-                            ) : (
-                              <SelectItem value="no-products-available" disabled>
-                                No inventory products
-                              </SelectItem>
-                            )}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="w-28">
-                        <Input
-                          type="number"
-                          min="1"
-                          value={item.quantity}
-                          onChange={(e) =>
-                            updateProductInOrder(index, 'quantity', parseInt(e.target.value) || 1)
-                          }
-                          placeholder="Qty"
-                        />
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeProductFromOrder(index)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-                      <span>{product ? `Unit price: Rs ${product.price.toLocaleString()}` : 'Select a product'}</span>
-                      <span>{product ? `Line total: Rs ${lineTotal.toLocaleString()}` : ''}</span>
-                      {product && product.stockQuantity !== undefined && <span>{`Stock: ${product.stockQuantity}`}</span>}
-                    </div>
-                  </div>
-                )
-              })}
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={addProductToOrder}
-                className="w-full gap-2"
-                disabled={products.length === 0}
-              >
-                <Plus className="w-4 h-4" />
-                Add item
-              </Button>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <label className="text-sm font-medium">Ingredients / Items</label>
-                <span className="text-xs text-muted-foreground">Type items manually.</span>
               </div>
-
-              {customItems.length === 0 && (
-                <div className="rounded-lg border border-dashed border-muted p-4 text-sm text-muted-foreground">
-                  Add items like “Sugar”, “Oil”, “Spices”, etc, with quantity and unit price.
+              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="w-4 h-4 rounded bg-blue-500" />
+                <div>
+                  <p className="text-sm font-medium text-blue-800">Online</p>
+                  <p className="text-xs text-blue-600">Digital payments</p>
                 </div>
-              )}
-
-              {customItems.map((item, idx) => {
-                const lineTotal = (Number(item.unitPrice) || 0) * (Number(item.quantity) || 0)
-                return (
-                  <div key={idx} className="grid grid-cols-12 gap-3 items-end bg-white p-3 rounded-lg border">
-                    <div className="col-span-6">
-                      <label className="text-xs text-muted-foreground">Item name</label>
-                      <Input
-                        value={item.name}
-                        onChange={(e) => updateCustomItem(idx, 'name', e.target.value)}
-                        placeholder="e.g. Eggs, Sugar, Oil..."
-                      />
-                    </div>
-                    <div className="col-span-2">
-                      <label className="text-xs text-muted-foreground">Qty</label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateCustomItem(idx, 'quantity', parseInt(e.target.value) || 1)}
-                      />
-                    </div>
-                    <div className="col-span-3">
-                      <label className="text-xs text-muted-foreground">Unit price</label>
-                      <Input
-                        type="number"
-                        min="0"
-                        value={item.unitPrice}
-                        onChange={(e) => updateCustomItem(idx, 'unitPrice', parseFloat(e.target.value) || 0)}
-                      />
-                      <div className="text-xs text-muted-foreground mt-1">Line: Rs {Math.round(lineTotal * 100) / 100}</div>
-                    </div>
-                    <div className="col-span-1 flex justify-end">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeCustomItem(idx)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })}
-
-              <Button type="button" variant="outline" onClick={addCustomItem} className="w-full gap-2">
-                <Plus className="w-4 h-4" />
-                Add item
-              </Button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-muted/30 p-4 rounded-lg">
-            <div className="md:col-span-1">
-              <label className="text-sm font-medium">Auto-calculate total</label>
-              <div className="mt-2 flex gap-2">
-                <Button type="button" variant={autoTotal ? 'default' : 'outline'} onClick={() => setAutoTotal(true)}>
-                  On
-                </Button>
-                <Button type="button" variant={!autoTotal ? 'default' : 'outline'} onClick={() => setAutoTotal(false)}>
-                  Off
-                </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                When On, total & paid default to computed total.
-              </p>
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Total Amount (Rs)</label>
-              <Input
-                type="number"
-                min="0"
-                value={totalAmountInput}
-                onChange={(e) => setTotalAmountInput(e.target.value)}
-                disabled={autoTotal}
-                className="mt-2 bg-white"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium">Paid Amount (Rs)</label>
-              <Input
-                type="number"
-                min="0"
-                value={paidAmountInput}
-                onChange={(e) => setPaidAmountInput(e.target.value)}
-                className="mt-2 bg-white"
-              />
+              <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
+                <div className="w-4 h-4 rounded bg-amber-500" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Unpaid</p>
+                  <p className="text-xs text-amber-600">Outstanding amounts</p>
+                </div>
+              </div>
             </div>
           </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={resetForm}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={handleCreateSale}
-              disabled={
-                creatingSale ||
-                !selectedCustomer ||
-                (itemsMode === 'inventory' ? selectedProducts.length === 0 : customItems.length === 0)
-              }
-            >
-              {creatingSale ? 'Creating...' : 'Create Sale'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Filters */}
+        </CardContent>
+      </Card>
       <Card className="border-0 shadow-sm">
         <CardContent className="p-4">
           <div className="flex flex-wrap gap-3 items-center">

@@ -12,10 +12,10 @@ import { User, Mail, Phone, MapPin, Calendar, Shield, LogOut, Camera, Lock } fro
 export default function AdminProfile() {
   const [isEditing, setIsEditing] = useState(false)
   const [adminData, setAdminData] = useState({
-    fullName: 'Admin User',
-    email: 'admin@sanustore.com',
-    phone: '+92-300-1234567',
-    location: 'Karachi, Pakistan',
+    fullName: 'Sanu Store',
+    email: 'oliviara53@gmail.com',
+    phone: '+977 9840412788',
+    location: 'Sitapaila, KTM',
     joinDate: 'January 15, 2023',
     role: 'Store Manager',
     storeId: 'SANU-001',
@@ -60,7 +60,7 @@ export default function AdminProfile() {
           <CardContent className="p-6">
             <div className="flex flex-col items-center text-center">
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-bold text-4xl relative mb-4">
-                A
+                S
                 <button className="absolute bottom-0 right-0 bg-white rounded-full p-2 border-4 border-background hover:bg-gray-100 transition-colors">
                   <Camera className="w-4 h-4 text-gray-700" />
                 </button>

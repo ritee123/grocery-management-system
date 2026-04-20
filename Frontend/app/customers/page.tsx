@@ -6,6 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Plus,
   Search,
   Edit,
@@ -329,7 +337,7 @@ export default function CustomersPage() {
           <h1 className="text-2xl font-bold text-foreground">Customers</h1>
           <p className="text-sm text-muted-foreground">Manage your customer database</p>
         </div>
-        <Button onClick={() => setIsAddingCustomer(true)} className="gap-2" disabled={isAddingCustomer}>
+        <Button onClick={() => setIsAddingCustomer(true)} className="gap-2">
           <Plus className="w-4 h-4" />
           Add Customer
         </Button>
@@ -378,14 +386,29 @@ export default function CustomersPage() {
         </Card>
       </div>
 
-      {/* Add/Edit Customer Form */}
-      {isAddingCustomer && (
-        <Card className="border-0 shadow-sm bg-primary/5">
-          <CardContent className="p-6 space-y-4">
-            <h3 className="font-semibold text-lg">{editingId ? 'Edit Customer' : 'Add New Customer'}</h3>
+      <Dialog
+        open={isAddingCustomer}
+        onOpenChange={(open) => {
+          if (!open) handleCancel()
+          else setIsAddingCustomer(true)
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingId ? '✏️ Edit Customer' : '👤 Add New Customer'}
+            </DialogTitle>
+            <DialogDescription>
+              Enter customer details. Name and phone are required.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-muted/30 p-4 rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-medium">Full Name</label>
+                <label className="text-sm font-medium">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -394,7 +417,9 @@ export default function CustomersPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Phone Number</label>
+                <label className="text-sm font-medium">
+                  Phone Number <span className="text-red-500">*</span>
+                </label>
                 <Input
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
@@ -422,15 +447,22 @@ export default function CustomersPage() {
                 />
               </div>
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-              <Button onClick={handleAddCustomer} disabled={savingCustomer}>
-                {savingCustomer ? 'Saving...' : editingId ? 'Update Customer' : 'Add Customer'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddCustomer}
+              disabled={savingCustomer || !formData.name || !formData.phone}
+            >
+              {savingCustomer ? 'Saving...' : editingId ? 'Update Customer' : 'Add Customer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Search */}
       <Card className="border-0 shadow-sm">

@@ -2,6 +2,12 @@ import { Customer, Product, Sale, SaleItem, Expense, Payment } from './store'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000'
 
+function getAuthHeaders() {
+  if (typeof window === 'undefined') return {}
+  const token = window.localStorage.getItem('auth_token')
+  return token ? { Authorization: `Token ${token}` } : {}
+}
+
 function parseCustomer(customer: any): Customer {
   return {
     ...customer,
@@ -67,7 +73,11 @@ function parseExpense(expense: any): Expense {
 }
 
 async function fetchJson(path: string) {
-  const response = await fetch(`${API_BASE}${path}`)
+  const response = await fetch(`${API_BASE}${path}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  })
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status} ${response.statusText}`)
   }
@@ -79,6 +89,7 @@ async function postJson(path: string, body: unknown) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(body),
   })
@@ -97,6 +108,7 @@ async function patchJson(path: string, body: unknown) {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     },
     body: JSON.stringify(body),
   })
@@ -112,6 +124,9 @@ async function patchJson(path: string, body: unknown) {
 async function deleteJson(path: string) {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'DELETE',
+    headers: {
+      ...getAuthHeaders(),
+    },
   })
 
   if (!response.ok) {
@@ -128,6 +143,34 @@ export async function fetchBootstrapData() {
     sales: (data.sales || []).map(parseSale),
     expenses: (data.expenses || []).map(parseExpense),
   }
+}
+
+export async function authSignup(payload: {
+  username: string
+  email: string
+  password: string
+  name?: string
+  phone?: string
+  address?: string
+}) {
+  return await postJson('/api/auth/signup/', payload)
+}
+
+export async function authLogin(payload: { username: string; password: string }) {
+  return await postJson('/api/auth/login/', payload)
+}
+
+export async function authMe() {
+  return await fetchJson('/api/auth/me/')
+}
+
+export async function authLogout() {
+  return await postJson('/api/auth/logout/', {})
+}
+
+export async function fetchMySales() {
+  const data = await fetchJson('/api/my/sales/')
+  return (data || []).map(parseSale)
 }
 
 export async function fetchCustomers() {

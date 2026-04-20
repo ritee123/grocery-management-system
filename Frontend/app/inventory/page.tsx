@@ -6,6 +6,14 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Search, Edit, Trash2, AlertTriangle, Package, DollarSign, Box } from 'lucide-react'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   createProduct,
   deleteProduct,
   fetchBootstrapData,
@@ -166,7 +174,7 @@ export default function InventoryPage() {
           <h1 className="text-2xl font-bold text-foreground">Inventory</h1>
           <p className="text-sm text-muted-foreground">Manage your inventory</p>
         </div>
-        <Button onClick={() => setIsAddingProduct(true)} className="gap-2" disabled={isAddingProduct}>
+        <Button onClick={() => setIsAddingProduct(true)} className="gap-2">
           <Plus className="w-4 h-4" />
           Add item
         </Button>
@@ -215,14 +223,27 @@ export default function InventoryPage() {
         </Card>
       </div>
 
-      {/* Add / edit item form */}
-      {isAddingProduct && (
-        <Card className="border-0 shadow-sm bg-primary/5">
-          <CardContent className="p-6 space-y-4">
-            <h3 className="font-semibold text-lg">{editingId ? 'Edit item' : 'Add new item'}</h3>
+      <Dialog
+        open={isAddingProduct}
+        onOpenChange={(open) => {
+          if (!open) handleCancel()
+          else setIsAddingProduct(true)
+        }}
+      >
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>{editingId ? '✏️ Edit item' : '📦 Add new item'}</DialogTitle>
+            <DialogDescription>
+              Add inventory product details. Name, SKU, and price are required.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="bg-muted/30 p-4 rounded-lg">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium">Item name</label>
+              <div className="md:col-span-1">
+                <label className="text-sm font-medium">
+                  Item name <span className="text-red-500">*</span>
+                </label>
                 <Input
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -230,8 +251,10 @@ export default function InventoryPage() {
                   className="mt-2 bg-white"
                 />
               </div>
-              <div>
-                <label className="text-sm font-medium">SKU</label>
+              <div className="md:col-span-1">
+                <label className="text-sm font-medium">
+                  SKU <span className="text-red-500">*</span>
+                </label>
                 <Input
                   value={formData.sku}
                   onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
@@ -239,7 +262,7 @@ export default function InventoryPage() {
                   className="mt-2 bg-white"
                 />
               </div>
-              <div>
+              <div className="md:col-span-1">
                 <label className="text-sm font-medium">Category</label>
                 <Input
                   value={formData.category}
@@ -249,13 +272,16 @@ export default function InventoryPage() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium">Unit Price (Rs)</label>
+                <label className="text-sm font-medium">
+                  Unit Price (Rs) <span className="text-red-500">*</span>
+                </label>
                 <Input
                   type="number"
                   value={formData.price}
                   onChange={(e) => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
                   placeholder="0"
                   className="mt-2 bg-white"
+                  min="0"
                 />
               </div>
               <div>
@@ -266,6 +292,7 @@ export default function InventoryPage() {
                   onChange={(e) => setFormData({ ...formData, stockQuantity: parseInt(e.target.value) || 0 })}
                   placeholder="0"
                   className="mt-2 bg-white"
+                  min="0"
                 />
               </div>
               <div>
@@ -276,18 +303,26 @@ export default function InventoryPage() {
                   onChange={(e) => setFormData({ ...formData, reorderLevel: parseInt(e.target.value) || 0 })}
                   placeholder="0"
                   className="mt-2 bg-white"
+                  min="0"
                 />
               </div>
             </div>
-            <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={handleCancel}>Cancel</Button>
-              <Button onClick={handleAddProduct} disabled={savingProduct}>
-                {savingProduct ? 'Saving...' : editingId ? 'Update item' : 'Add item'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={handleAddProduct}
+              disabled={savingProduct || !formData.name || !formData.sku || formData.price <= 0}
+            >
+              {savingProduct ? 'Saving...' : editingId ? 'Update item' : 'Add item'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Search */}
       <Card className="border-0 shadow-sm">

@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar as CalendarPicker } from '@/components/ui/calendar'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { fetchBootstrapData } from '@/lib/api'
+import type { Customer, Expense, Product, Sale } from '@/lib/store'
 import {
   TrendingUp,
   TrendingDown,
@@ -14,6 +19,7 @@ import {
   Banknote,
   Wallet,
   Package,
+  CalendarDays,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -26,7 +32,11 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  BarChart,
+  Bar,
 } from 'recharts'
+import { addDays, endOfDay, format, startOfDay } from 'date-fns'
+import type { DateRange } from 'react-day-picker'
 
 // Stat Card Component matching the design
 interface StatCardProps {
@@ -35,6 +45,124 @@ interface StatCardProps {
   change?: number
   icon: React.ReactNode
   iconBg: string
+}
+
+type SalesPerformanceGranularity = 'daily' | 'weekly' | 'monthly' | 'yearly'
+
+function startOfLocalDay(date: Date) {
+  const d = new Date(date)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function startOfLocalMonth(date: Date) {
+  const d = new Date(date.getFullYear(), date.getMonth(), 1)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function startOfLocalYear(date: Date) {
+  const d = new Date(date.getFullYear(), 0, 1)
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function addLocalMonths(date: Date, months: number) {
+  const d = new Date(date)
+  d.setMonth(d.getMonth() + months)
+  return d
+}
+
+function addLocalYears(date: Date, years: number) {
+  const d = new Date(date)
+  d.setFullYear(d.getFullYear() + years)
+  return d
+}
+
+function defaultSalesPerformanceWindow(
+  granularity: SalesPerformanceGranularity,
+  now: Date,
+): { start: Date; end: Date } {
+  const end = endOfDay(now)
+
+  if (granularity === 'daily') {
+    return { start: startOfLocalDay(addDays(now, -13)), end }
+  }
+
+  if (granularity === 'weekly') {
+    return { start: startOfLocalDay(addDays(now, -7 * 7 + 1)), end }
+  }
+
+  if (granularity === 'monthly') {
+    return { start: startOfLocalMonth(addLocalMonths(now, -5)), end }
+  }
+
+  // yearly
+  return { start: startOfLocalYear(addLocalYears(now, -2)), end }
+}
+
+function buildSalesPerformanceBuckets(
+  granularity: SalesPerformanceGranularity,
+  rangeStart: Date,
+  rangeEnd: Date,
+) {
+  const buckets: { key: string; label: string; start: Date; end: Date }[] = []
+
+  let cursor = new Date(rangeStart)
+  const hardEnd = new Date(rangeEnd)
+
+  const pushBucket = (start: Date, end: Date, label: string, key: string) => {
+    buckets.push({ key, label, start, end })
+  }
+
+  if (granularity === 'daily') {
+    let day = startOfLocalDay(cursor)
+    const endDay = startOfLocalDay(hardEnd)
+    while (day <= endDay) {
+      const start = startOfLocalDay(day)
+      const end = endOfDay(day)
+      pushBucket(start, end, format(start, 'MMM d'), format(start, 'yyyy-MM-dd'))
+      day = addDays(day, 1)
+    }
+    return buckets
+  }
+
+  if (granularity === 'weekly') {
+    let weekStart = startOfLocalDay(cursor)
+    while (weekStart <= hardEnd) {
+      const start = startOfLocalDay(weekStart)
+      const end = endOfDay(addDays(start, 6))
+      pushBucket(start, end, `Week of ${format(start, 'MMM d')}`, format(start, 'yyyy-MM-dd'))
+      weekStart = addDays(weekStart, 7)
+    }
+    return buckets
+  }
+
+  if (granularity === 'monthly') {
+    let monthStart = startOfLocalMonth(cursor)
+    const endMonth = startOfLocalMonth(hardEnd)
+    while (monthStart <= endMonth) {
+      const start = startOfLocalMonth(monthStart)
+      const nextMonthStart = addLocalMonths(start, 1)
+      const end = new Date(nextMonthStart.getTime() - 1)
+      pushBucket(start, end, format(start, 'MMM yyyy'), format(start, 'yyyy-MM'))
+      monthStart = addLocalMonths(monthStart, 1)
+    }
+    return buckets
+  }
+
+  // yearly
+  let yearStart = startOfLocalYear(cursor)
+  const endYear = startOfLocalYear(hardEnd)
+  while (yearStart <= endYear) {
+    const start = startOfLocalYear(yearStart)
+    const end = endOfDay(addLocalYears(start, 1))
+    const end2 = new Date(end.getTime() - 1)
+    pushBucket(start, end2, format(start, 'yyyy'), format(start, 'yyyy'))
+    yearStart = addLocalYears(yearStart, 1)
+  }
+
+  return buckets
 }
 
 function StatCard({ title, value, change, icon, iconBg }: StatCardProps) {
@@ -68,13 +196,18 @@ function StatCard({ title, value, change, icon, iconBg }: StatCardProps) {
 }
 
 export default function Dashboard() {
-  const [customers, setCustomers] = useState([])
-  const [sales, setSales] = useState([])
-  const [products, setProducts] = useState([])
-  const [expenses, setExpenses] = useState([])
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [sales, setSales] = useState<Sale[]>([])
+  const [products, setProducts] = useState<Product[]>([])
+  const [expenses, setExpenses] = useState<Expense[]>([])
   const [loading, setLoading] = useState(true)
   const [mounted, setMounted] = useState(false)
   const [salesRange, setSalesRange] = useState<'last_month' | 'last_3_months' | 'last_year'>('last_month')
+  const [salesPerformanceGranularity, setSalesPerformanceGranularity] = useState<
+    'daily' | 'weekly' | 'monthly' | 'yearly'
+  >('daily')
+  const [salesPerformanceRange, setSalesPerformanceRange] = useState<DateRange | undefined>(undefined)
+  const [salesPerformanceRangeOpen, setSalesPerformanceRangeOpen] = useState(false)
 
   useEffect(() => {
     setMounted(true)
@@ -193,48 +326,73 @@ export default function Dashboard() {
     return Math.round(((currentIncome - prevIncome) / prevIncome) * 100)
   }, [sales, salesRangeConfig])
 
-  // Weekly sales data
-  const weeklySalesData = useMemo(() => {
+  const salesPerformanceData = useMemo(() => {
     const now = new Date()
-    const weeksCount = 4
-    const msInDay = 24 * 60 * 60 * 1000
-    const ranges = Array.from({ length: weeksCount }, (_, idx) => {
-      // Oldest -> newest
-      const end = new Date(now.getTime() - (weeksCount - 1 - idx) * 7 * msInDay)
-      const start = new Date(end.getTime() - 7 * msInDay)
-      return { start, end, label: `Week ${idx + 1}` }
-    })
 
-    return ranges.map(({ start, end, label }) => {
-      const salesInWeek = sales.filter((s) => {
+    const from = salesPerformanceRange?.from
+    const to = salesPerformanceRange?.to
+
+    const window =
+      from && to
+        ? { start: startOfLocalDay(from), end: endOfDay(to) }
+        : from && !to
+          ? { start: startOfLocalDay(from), end: endOfDay(from) }
+          : defaultSalesPerformanceWindow(salesPerformanceGranularity, now)
+
+    const buckets = buildSalesPerformanceBuckets(salesPerformanceGranularity, window.start, window.end)
+
+    return buckets.map((b) => {
+      const salesInBucket = sales.filter((s) => {
         const d = new Date(s.date)
-        return !Number.isNaN(d.getTime()) && d >= start && d < end
+        return !Number.isNaN(d.getTime()) && d >= b.start && d <= b.end
       })
 
-      const orders = salesInWeek.length
-      const revenue = salesInWeek.reduce((sum, s) => sum + (Number(s.totalAmount) || 0), 0)
+      let closedCount = 0
+      let partialCount = 0
+      let unpaidCount = 0
 
-      const qtyByProduct = new Map<string, { name: string; qty: number }>()
-      for (const s of salesInWeek) {
-        for (const item of s.items || []) {
-          const key = String(item.productId ?? item.product_id ?? item.productName ?? item.product_name ?? 'unknown')
-          const name = String(item.productName ?? item.product_name ?? 'Unknown')
-          const qty = Number(item.quantity) || 0
-          const prev = qtyByProduct.get(key)
-          qtyByProduct.set(key, { name, qty: (prev?.qty || 0) + qty })
+      let closedRevenue = 0
+      let partialRevenue = 0
+      let unpaidRevenue = 0
+
+      for (const s of salesInBucket) {
+        const gross = Number(s.totalAmount) || 0
+        const paid = Number(s.paidAmount) || 0
+
+        if (s.paymentStatus === 'paid') {
+          closedCount += 1
+          closedRevenue += gross
+        } else if (s.paymentStatus === 'partial') {
+          partialCount += 1
+          partialRevenue += paid
+        } else {
+          unpaidCount += 1
+          unpaidRevenue += gross
         }
       }
-      const topSelling =
-        Array.from(qtyByProduct.values()).sort((a, b) => b.qty - a.qty)[0]?.name ?? '-'
 
-      const newCustomers = customers.filter((c) => {
-        const d = new Date(c.createdAt)
-        return !Number.isNaN(d.getTime()) && d >= start && d < end
-      }).length
+      const openCount = partialCount + unpaidCount
+      const openRevenue = partialRevenue + unpaidRevenue
+      const totalCount = salesInBucket.length
+      const totalRevenue = closedRevenue + openRevenue
+      const successRate = totalRevenue > 0 ? (closedRevenue / totalRevenue) * 100 : totalCount > 0 && openCount === 0 ? 100 : 0
 
-      return { week: label, orders, revenue: Math.round(revenue), topSelling, newCustomers }
+      return {
+        ...b,
+        closedCount,
+        openCount,
+        partialCount,
+        unpaidCount,
+        closedRevenue,
+        openRevenue,
+        partialRevenue,
+        unpaidRevenue,
+        totalCount,
+        totalRevenue,
+        successRate,
+      }
     })
-  }, [sales, customers])
+  }, [sales, salesPerformanceGranularity, salesPerformanceRange])
 
   const lowStockProduct = useMemo(() => {
     const low = products
@@ -251,6 +409,94 @@ export default function Dashboard() {
     status: sale.paymentStatus,
     amount: sale.totalAmount,
   }))
+
+  const salesPerformanceRangeLabel = useMemo(() => {
+    const from = salesPerformanceRange?.from
+    const to = salesPerformanceRange?.to
+
+    if (from && to) {
+      return `${format(startOfLocalDay(from), 'MMM d, yyyy')} – ${format(endOfDay(to), 'MMM d, yyyy')}`
+    }
+
+    if (from && !to) {
+      return `${format(startOfLocalDay(from), 'MMM d, yyyy')}`
+    }
+
+    const now = new Date()
+    const w = defaultSalesPerformanceWindow(salesPerformanceGranularity, now)
+    return `${format(w.start, 'MMM d, yyyy')} – ${format(w.end, 'MMM d, yyyy')}`
+  }, [salesPerformanceGranularity, salesPerformanceRange])
+
+  const SalesPerformanceTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
+    if (!active || !payload?.length) return null
+    const row = payload[0]?.payload as any
+    if (!row) return null
+
+    const totalOrders = row.totalCount ?? 0
+    const netRevenue = row.totalRevenue ?? 0
+    const successRate = row.successRate ?? 0
+
+    return (
+      <div className="rounded-xl border bg-white shadow-lg p-4 w-[min(92vw,520px)]">
+        <div className="font-semibold text-sm mb-3">{row.label}</div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <span className="inline-block size-2 rounded-full bg-emerald-500" />
+              Closed orders
+            </div>
+            <div className="mt-2 text-2xl font-bold">{row.closedCount}</div>
+            <div className="mt-1 text-xs text-muted-foreground">Revenue</div>
+            <div className="text-sm font-semibold text-emerald-700">Rs {Number(row.closedRevenue || 0).toLocaleString()}</div>
+            <div className="mt-3 text-xs font-semibold text-muted-foreground">Breakdown</div>
+            <div className="mt-2 space-y-1 text-xs">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Paid</span>
+                <span className="font-medium">{row.closedCount}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-lg border p-3">
+            <div className="flex items-center gap-2 text-sm font-semibold">
+              <span className="inline-block size-2 rounded-full bg-red-500" />
+              Open orders
+            </div>
+            <div className="mt-2 text-2xl font-bold">{row.openCount}</div>
+            <div className="mt-1 text-xs text-muted-foreground">At-risk / unpaid total</div>
+            <div className="text-sm font-semibold text-red-700">Rs {Number(row.openRevenue || 0).toLocaleString()}</div>
+            <div className="mt-3 text-xs font-semibold text-muted-foreground">Breakdown</div>
+            <div className="mt-2 space-y-1 text-xs">
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Partial</span>
+                <span className="font-medium">{row.partialCount}</span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-muted-foreground">Unpaid</span>
+                <span className="font-medium">{row.unpaidCount}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 grid grid-cols-3 gap-3 border-t pt-3">
+          <div>
+            <div className="text-[11px] text-muted-foreground">Total orders</div>
+            <div className="text-lg font-bold">{totalOrders}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-muted-foreground">Net revenue</div>
+            <div className="text-lg font-bold text-emerald-700">Rs {Number(netRevenue || 0).toLocaleString()}</div>
+          </div>
+          <div>
+            <div className="text-[11px] text-muted-foreground">Paid share</div>
+            <div className="text-lg font-bold text-emerald-700">{successRate.toFixed(1)}%</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6 bg-background min-h-screen">
@@ -424,37 +670,120 @@ export default function Dashboard() {
 
       {/* Bottom Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Weekly Sales Table */}
+        {/* Sales performance (weekly overview replacement) */}
         <Card className="lg:col-span-2 border-0 shadow-sm bg-white">
-          <CardHeader className="flex flex-row items-center justify-between pb-4">
-            <CardTitle className="text-lg font-semibold">Weekly sales overview</CardTitle>
-            <button className="text-sm text-primary hover:underline">See All</button>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="border-b">
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Week</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total sales</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Revenue</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Top Selling</th>
-                    <th className="text-left py-3 px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">New Customers</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeklySalesData.map((row, idx) => (
-                    <tr key={idx} className="border-b last:border-b-0 hover:bg-muted/30 transition-colors">
-                      <td className="py-4 px-4 text-sm font-medium">{row.week}</td>
-                      <td className="py-4 px-4 text-sm">{row.orders}</td>
-                      <td className="py-4 px-4 text-sm">Rs {row.revenue.toLocaleString()}</td>
-                      <td className="py-4 px-4 text-sm">{row.topSelling}</td>
-                      <td className="py-4 px-4 text-sm">{row.newCustomers}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pb-3">
+            <CardTitle className="text-lg font-semibold">Sales performance</CardTitle>
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end w-full sm:w-auto">
+              <ToggleGroup
+                type="single"
+                value={salesPerformanceGranularity}
+                onValueChange={(value) => {
+                  if (!value) return
+                  setSalesPerformanceGranularity(value as SalesPerformanceGranularity)
+                  setSalesPerformanceRange(undefined)
+                }}
+                variant="outline"
+                size="sm"
+                className="w-full sm:w-auto"
+              >
+                <ToggleGroupItem value="daily" className="text-xs sm:text-sm">
+                  Daily
+                </ToggleGroupItem>
+                <ToggleGroupItem value="weekly" className="text-xs sm:text-sm">
+                  Weekly
+                </ToggleGroupItem>
+                <ToggleGroupItem value="monthly" className="text-xs sm:text-sm">
+                  Monthly
+                </ToggleGroupItem>
+                <ToggleGroupItem value="yearly" className="text-xs sm:text-sm">
+                  Yearly
+                </ToggleGroupItem>
+              </ToggleGroup>
+
+              <Popover open={salesPerformanceRangeOpen} onOpenChange={setSalesPerformanceRangeOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2 w-full sm:w-auto justify-center">
+                    <CalendarDays className="w-4 h-4" />
+                    <span className="text-xs sm:text-sm">Date range</span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="end">
+                  <CalendarPicker
+                    mode="range"
+                    selected={salesPerformanceRange}
+                    onSelect={(range) => setSalesPerformanceRange(range)}
+                    numberOfMonths={2}
+                    initialFocus
+                  />
+                  <div className="flex items-center justify-between gap-2 p-3 border-t">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setSalesPerformanceRange(undefined)
+                        setSalesPerformanceRangeOpen(false)
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button size="sm" onClick={() => setSalesPerformanceRangeOpen(false)}>
+                      Apply
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </div>
+          </CardHeader>
+
+          <CardContent>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+              <div className="text-xs text-muted-foreground">{salesPerformanceRangeLabel}</div>
+              <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2">
+                  <span className="inline-block size-2 rounded-sm bg-emerald-500" />
+                  Closed orders
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="inline-block size-2 rounded-sm bg-red-500" />
+                  Open orders
+                </div>
+              </div>
+            </div>
+
+            <ResponsiveContainer width="100%" height={320}>
+              {mounted ? (
+                <BarChart data={salesPerformanceData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                  <XAxis
+                    dataKey="label"
+                    tickLine={false}
+                    axisLine={false}
+                    interval={
+                      salesPerformanceGranularity === 'daily' && salesPerformanceData.length > 14
+                        ? Math.max(0, Math.ceil(salesPerformanceData.length / 12) - 1)
+                        : 0
+                    }
+                    height={48}
+                    tick={{ fill: '#9CA3AF', fontSize: 11 }}
+                    tickMargin={8}
+                  />
+                  <YAxis
+                    allowDecimals={false}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                  />
+                  <Tooltip
+                    cursor={{ fill: 'rgba(59, 130, 246, 0.08)' }}
+                    content={<SalesPerformanceTooltip />}
+                  />
+                  <Bar dataKey="closedCount" name="Closed orders" stackId="orders" fill="#22C55E" radius={[6, 6, 0, 0]} />
+                  <Bar dataKey="openCount" name="Open orders" stackId="orders" fill="#EF4444" radius={[0, 0, 6, 6]} />
+                </BarChart>
+              ) : null}
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 

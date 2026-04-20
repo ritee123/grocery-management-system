@@ -46,11 +46,11 @@ export function Header() {
           {/* Profile */}
           <Link href="/profile" className="flex items-center gap-3 pl-4 ml-2 border-l hover:opacity-80 transition-opacity">
             <div className="w-9 h-9 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-white font-semibold text-sm">
-              A
+              S
             </div>
             <div className="text-right hidden md:block">
-              <div className="text-sm font-medium">Admin</div>
-              <div className="text-xs text-muted-foreground">admin@sanustore.com</div>
+              <div className="text-sm font-medium">Sanu Store</div>
+              <div className="text-xs text-muted-foreground">oliviara53@gmail.com</div>
             </div>
           </Link>
         </div>

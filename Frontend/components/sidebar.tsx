@@ -14,9 +14,14 @@ import {
   Leaf,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { clearAuthSession, getAuthRole } from '@/lib/auth'
+import { authLogout } from '@/lib/api'
+import { useRouter } from 'next/navigation'
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
+  const role = getAuthRole()
 
   const mainMenu = [
     { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -35,6 +40,17 @@ export function Sidebar() {
     { href: '/support', icon: HelpCircle, label: 'Support' },
     { href: '/profile', icon: Users, label: 'Profile' },
   ]
+
+  const onLogout = async () => {
+    try {
+      await authLogout()
+    } catch {
+      // ignore
+    } finally {
+      clearAuthSession()
+      router.push('/login')
+    }
+  }
 
   return (
     <div className="w-64 bg-sidebar text-sidebar-foreground min-h-screen flex flex-col border-r border-sidebar-border">
@@ -116,7 +132,10 @@ export function Sidebar() {
             </Link>
           )
         })}
-        <button className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-200">
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all duration-200"
+        >
           <LogOut className="w-5 h-5" />
           <span className="text-sm">Logout</span>
         </button>
