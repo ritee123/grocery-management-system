@@ -8,6 +8,16 @@ function getAuthHeaders() {
   return token ? { Authorization: `Token ${token}` } : {}
 }
 
+function cleanHeaders(headers: Record<string, string | undefined>): Record<string, string> {
+  const cleaned: Record<string, string> = {}
+  Object.entries(headers).forEach(([key, value]) => {
+    if (value !== undefined) {
+      cleaned[key] = value
+    }
+  })
+  return cleaned
+}
+
 function parseCustomer(customer: any): Customer {
   return {
     ...customer,
@@ -74,9 +84,7 @@ function parseExpense(expense: any): Expense {
 
 async function fetchJson(path: string) {
   const response = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      ...getAuthHeaders(),
-    },
+    headers: cleanHeaders(getAuthHeaders()),
   })
   if (!response.ok) {
     throw new Error(`API request failed: ${response.status} ${response.statusText}`)
@@ -87,10 +95,10 @@ async function fetchJson(path: string) {
 async function postJson(path: string, body: unknown) {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
-    headers: {
+    headers: cleanHeaders({
       'Content-Type': 'application/json',
       ...getAuthHeaders(),
-    },
+    }),
     body: JSON.stringify(body),
   })
 
@@ -106,10 +114,10 @@ async function postJson(path: string, body: unknown) {
 async function patchJson(path: string, body: unknown) {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'PATCH',
-    headers: {
+    headers: cleanHeaders({
       'Content-Type': 'application/json',
       ...getAuthHeaders(),
-    },
+    }),
     body: JSON.stringify(body),
   })
 
@@ -124,9 +132,7 @@ async function patchJson(path: string, body: unknown) {
 async function deleteJson(path: string) {
   const response = await fetch(`${API_BASE}${path}`, {
     method: 'DELETE',
-    headers: {
-      ...getAuthHeaders(),
-    },
+    headers: cleanHeaders(getAuthHeaders()),
   })
 
   if (!response.ok) {

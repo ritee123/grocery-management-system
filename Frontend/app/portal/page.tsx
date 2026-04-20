@@ -624,5 +624,6 @@ export default function CustomerPortalPage() {
         </div>
       </div>
     </div>
+    </div>
   )
 }
