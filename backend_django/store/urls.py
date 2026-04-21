@@ -13,4 +13,9 @@ router.register(r'expenses', views.ExpenseViewSet)
 urlpatterns = [
     path('', include(router.urls)),
     path('bootstrap/', views.bootstrap, name='bootstrap'),
+    path('auth/signup/', views.signup, name='signup'),
+    path('auth/login/', views.login, name='login'),
+    path('auth/logout/', views.logout, name='logout'),
+    path('auth/me/', views.me, name='me'),
+    path('my/sales/', views.my_sales, name='my-sales'),
 ]

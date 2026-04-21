@@ -1,0 +1,46 @@
+services:
+  # Django Web Service
+  - type: web
+    name: sanu-store-api
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn sanu_store.wsgi:application
+    healthCheckPath: /api/bootstrap/
+    envVars:
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: DJANGO_DEBUG
+        value: false
+      - key: DJANGO_ALLOWED_HOSTS
+        sync: false
+      - key: VERCEL_DOMAINS
+        sync: false
+      - key: DB_ENGINE
+        value: postgresql
+      - key: DB_NAME
+        fromDatabase:
+          name: sanu-store-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: sanu-store-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: sanu-store-db
+          property: password
+      - key: DB_HOST
+        fromDatabase:
+          name: sanu-store-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: sanu-store-db
+          property: port
+
+  # PostgreSQL Database
+  - type: pserv
+    name: sanu-store-db
+    plan: free
+    env: postgres

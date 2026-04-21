@@ -1,11 +1,12 @@
 from django.db import models
 from django.utils import timezone
 import uuid
+from django.conf import settings
 
 class Customer(models.Model):
     id = models.CharField(max_length=36, primary_key=True, default=uuid.uuid4, editable=False)
     name = models.CharField(max_length=255)
-    phone = models.CharField(max_length=20)
+    phone = models.CharField(max_length=20, blank=True, default='')
     email = models.CharField(max_length=255, blank=True, default='')
     address = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(default=timezone.now)
@@ -118,3 +119,19 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.category} - {self.description}"
+
+
+class CustomerProfile(models.Model):
+    """
+    Links a Django auth user to a store Customer record for the customer portal.
+    Admin users are determined via is_staff / is_superuser and may not need a profile.
+    """
+
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="customer_profile")
+    customer = models.OneToOneField(Customer, on_delete=models.SET_NULL, null=True, blank=True, related_name="profile")
+
+    class Meta:
+        db_table = "customer_profiles"
+
+    def __str__(self):
+        return f"Profile({self.user_id})"

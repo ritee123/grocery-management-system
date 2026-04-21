@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'rest_framework',
+    'rest_framework.authtoken',
     'store',
     'corsheaders',
 ]
@@ -132,6 +133,9 @@ USE_I18N = True
 
 USE_TZ = True
 
+# Default primary key field type
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
@@ -144,6 +148,11 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
+# Add Vercel domains from environment variable for production
+vercel_domains = os.environ.get("VERCEL_DOMAINS", "")
+if vercel_domains:
+    CORS_ALLOWED_ORIGINS.extend([domain.strip() for domain in vercel_domains.split(",")])
+
 # Allow cross-site POSTs from the Next.js dev server without requiring CSRF tokens.
 # This is needed because the frontend sends JSON POST requests.
 CSRF_TRUSTED_ORIGINS = [
@@ -151,9 +160,16 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:3000",
 ]
 
+# Add Vercel domains to CSRF trusted origins for production
+if vercel_domains:
+    CSRF_TRUSTED_ORIGINS.extend([domain.strip() for domain in vercel_domains.split(",")])
+
 # REST Framework settings
 REST_FRAMEWORK = {
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
     ],
 }

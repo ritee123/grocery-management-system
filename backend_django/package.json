@@ -1,0 +1,13 @@
+{
+  "name": "sanu-store-api",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "echo 'Build complete'"
+  },
+  "dependencies": {
+    "django": "^4.2.0",
+    "djangorestframework": "^3.14.0",
+    "psycopg2": "^2.9.0",
+    "django-cors-headers": "^4.3.0"
+  }
+}

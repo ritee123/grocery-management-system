@@ -1,10 +1,14 @@
 from rest_framework import viewsets, status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, authentication_classes, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
 from django.db.models import Sum, Count, F
 from django.db.models.functions import TruncMonth
 from datetime import datetime, timedelta
-from .models import Customer, Product, Sale, SaleItem, Payment, Expense
+from django.contrib.auth import authenticate
+from django.contrib.auth.models import User
+from .models import Customer, Product, Sale, SaleItem, Payment, Expense, CustomerProfile
 from .serializers import (
     CustomerSerializer, ProductSerializer, SaleSerializer,
     SaleItemSerializer, PaymentSerializer, ExpenseSerializer
@@ -55,3 +59,106 @@ def bootstrap(request):
     }
 
     return Response(data)
+
+
+def _user_role(user):
+    return "admin" if user.is_staff or user.is_superuser else "customer"
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def signup(request):
+    """
+    Create a new customer account (Django User + store Customer + profile) and return an auth token.
+    """
+    payload = request.data or {}
+    username = (payload.get("username") or "").strip()
+    email = (payload.get("email") or "").strip()
+    password = payload.get("password") or ""
+    name = (payload.get("name") or username or "").strip()
+    phone = (payload.get("phone") or "").strip()
+    address = (payload.get("address") or "").strip()
+
+    if not username or not email or not password:
+        return Response({"detail": "username, email, and password are required"}, status=status.HTTP_400_BAD_REQUEST)
+
+    if User.objects.filter(username=username).exists():
+        return Response({"detail": "username already exists"}, status=status.HTTP_400_BAD_REQUEST)
+    if User.objects.filter(email=email).exists():
+        return Response({"detail": "email already exists"}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = User.objects.create_user(username=username, email=email, password=password)
+
+    customer = Customer.objects.create(
+        name=name,
+        phone=phone,
+        email=email,
+        address=address,
+    )
+    CustomerProfile.objects.create(user=user, customer=customer)
+
+    token, _ = Token.objects.get_or_create(user=user)
+    return Response(
+        {
+            "token": token.key,
+            "role": _user_role(user),
+            "user": {"id": user.id, "username": user.username, "email": user.email},
+        },
+        status=status.HTTP_201_CREATED,
+    )
+
+
+@api_view(["POST"])
+@permission_classes([AllowAny])
+def login(request):
+    payload = request.data or {}
+    username = (payload.get("username") or "").strip()
+    password = payload.get("password") or ""
+    user = authenticate(username=username, password=password)
+    if not user:
+        return Response({"detail": "Invalid username or password"}, status=status.HTTP_400_BAD_REQUEST)
+    token, _ = Token.objects.get_or_create(user=user)
+    return Response(
+        {
+            "token": token.key,
+            "role": _user_role(user),
+            "user": {"id": user.id, "username": user.username, "email": user.email},
+        }
+    )
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def logout(request):
+    Token.objects.filter(user=request.user).delete()
+    return Response({"detail": "logged out"})
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def me(request):
+    user = request.user
+    data = {
+        "role": _user_role(user),
+        "user": {"id": user.id, "username": user.username, "email": user.email},
+    }
+    if hasattr(user, "customer_profile") and user.customer_profile.customer_id:
+        data["customer_id"] = user.customer_profile.customer_id
+    return Response(data)
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_sales(request):
+    """
+    Customer portal: returns sales for the logged-in customer only.
+    """
+    user = request.user
+    if not hasattr(user, "customer_profile") or not user.customer_profile.customer_id:
+        return Response({"detail": "No customer profile linked to this user."}, status=status.HTTP_400_BAD_REQUEST)
+    sales = (
+        Sale.objects.filter(customer_id=user.customer_profile.customer_id)
+        .prefetch_related("items", "payments")
+        .order_by("-date")
+    )
+    return Response(SaleSerializer(sales, many=True).data)
