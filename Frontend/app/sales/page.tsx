@@ -263,18 +263,34 @@ export default function SalesPage() {
       // Update sale items if changed
       if (saleData.items) {
         console.log('Updating items:', saleData.items)
+        console.log('Original items from editingSale:', editingSale.items)
+        
         try {
-          await Promise.all(
-            saleData.items.map((item: any) =>
-              updateSaleItem(item.id, {
+          for (const item of saleData.items) {
+            console.log('Updating item:', item)
+            console.log('Item ID:', item.id)
+            console.log('Payload being sent:', {
+              product_name: item.productName,
+              unit_price: item.unitPrice,
+              quantity: item.quantity,
+              subtotal: item.subtotal
+            })
+            
+            try {
+              await updateSaleItem(item.id, {
                 product_name: item.productName,
                 unit_price: item.unitPrice,
                 quantity: item.quantity,
                 subtotal: item.subtotal
               })
-            )
-          )
-          console.log('Item updates successful')
+              console.log('Item update successful for:', item.id)
+            } catch (singleItemError) {
+              console.error('Failed to update item:', item.id, singleItemError)
+              throw singleItemError
+            }
+          }
+          
+          console.log('All item updates successful')
           updateSuccess = true
         } catch (itemError) {
           console.error('Item update failed:', itemError)
@@ -286,19 +302,34 @@ export default function SalesPage() {
       if (updateSuccess) {
         console.log('Sale update completed successfully')
         
-        // Force refresh the sales data
+        // Force refresh the sales data with multiple attempts if needed
         console.log('Refreshing sales data...')
-        const updatedSales = await fetchSales()
+        let updatedSales = await fetchSales()
         console.log('Sales data refreshed:', updatedSales.length, 'sales')
+        
+        // Double-check the specific sale was updated
+        const updatedSale = updatedSales.find((s: Sale) => s.id === editingSale.id)
+        if (updatedSale) {
+          console.log('Updated sale found:', updatedSale)
+          console.log('Updated items:', updatedSale.items)
+        }
         
         // Update the state
         setSales(updatedSales)
+        
+        // Force a second refresh after a short delay to ensure backend is updated
+        setTimeout(async () => {
+          console.log('Performing second refresh to ensure data is current...')
+          const finalSales = await fetchSales()
+          setSales(finalSales)
+          console.log('Final refresh completed:', finalSales.length, 'sales')
+        }, 1000)
         
         // Close modal and reset state
         setIsEditModalOpen(false)
         setEditingSale(null)
         
-        alert('Sale updated successfully!')
+        alert('Sale updated successfully! Your changes should now be visible.')
       } else {
         alert('No changes were detected')
       }

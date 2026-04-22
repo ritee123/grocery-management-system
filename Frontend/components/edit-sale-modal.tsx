@@ -33,7 +33,7 @@ export function EditSaleModal({
     if (sale) {
       setSaleDate(new Date(sale.date))
       setItems(sale.items.map(item => ({
-        id: item.productId || item.productName,
+        id: item.id, // Use the actual sale item ID
         name: item.productName,
         price: item.unitPrice,
         quantity: item.quantity
