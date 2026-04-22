@@ -3,6 +3,7 @@ from rest_framework.decorators import api_view, authentication_classes, permissi
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
+import os
 from django.db.models import Sum, Count, F
 from django.db.models.functions import TruncMonth
 from datetime import datetime, timedelta
@@ -62,7 +63,14 @@ def bootstrap(request):
 
 
 def _user_role(user):
-    return "admin" if user.is_staff or user.is_superuser else "customer"
+    admin_usernames = [
+        x.strip()
+        for x in os.environ.get("ADMIN_USERNAMES", "").split(",")
+        if x.strip()
+    ]
+    if user.is_staff or user.is_superuser or user.username in admin_usernames:
+        return "admin"
+    return "customer"
 
 
 @api_view(["POST"])
