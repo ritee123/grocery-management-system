@@ -208,13 +208,56 @@ export default function SalesPage() {
     if (!editingSale) return
     
     setSaving(true)
+    let updateSuccess = false
+    
     try {
       console.log('Updating sale with data:', saleData)
+      console.log('Original sale:', editingSale)
       
       // Update sale date if changed
       if (saleData.date) {
         console.log('Updating date to:', saleData.date)
-        await updateSale(editingSale.id, { date: saleData.date })
+        try {
+          await updateSale(editingSale.id, { date: saleData.date })
+          console.log('Date update successful')
+          updateSuccess = true
+        } catch (dateError) {
+          console.error('Date update failed:', dateError)
+          alert('Failed to update sale date: ' + (dateError instanceof Error ? dateError.message : 'Unknown error'))
+          return
+        }
+      }
+
+      // Update payment status if changed
+      if (saleData.paymentStatus !== undefined) {
+        console.log('Updating payment status to:', saleData.paymentStatus)
+        try {
+          await updateSale(editingSale.id, { 
+            payment_status: saleData.paymentStatus
+          })
+          console.log('Payment status update successful')
+          updateSuccess = true
+        } catch (statusError) {
+          console.error('Payment status update failed:', statusError)
+          alert('Failed to update payment status: ' + (statusError instanceof Error ? statusError.message : 'Unknown error'))
+          return
+        }
+      }
+
+      // Update paid amount if changed
+      if (saleData.paidAmount !== undefined) {
+        console.log('Updating paid amount to:', saleData.paidAmount)
+        try {
+          await updateSale(editingSale.id, { 
+            paid_amount: saleData.paidAmount
+          })
+          console.log('Paid amount update successful')
+          updateSuccess = true
+        } catch (amountError) {
+          console.error('Paid amount update failed:', amountError)
+          alert('Failed to update paid amount: ' + (amountError instanceof Error ? amountError.message : 'Unknown error'))
+          return
+        }
       }
 
       // Update sale items if changed (try but don't fail if not supported)
@@ -230,36 +273,36 @@ export default function SalesPage() {
               })
             )
           )
+          console.log('Item updates successful')
+          updateSuccess = true
         } catch (itemError) {
           console.warn('Item update failed, but continuing:', itemError)
-          // Don't fail the whole operation if item updates fail
+          alert('Item updates failed, but other changes were saved: ' + (itemError instanceof Error ? itemError.message : 'Unknown error'))
         }
       }
 
-      // Update payment status if changed
-      if (saleData.paymentStatus !== undefined) {
-        console.log('Updating payment status to:', saleData.paymentStatus)
-        await updateSale(editingSale.id, { 
-          payment_status: saleData.paymentStatus
-        })
+      if (updateSuccess) {
+        console.log('Sale update completed successfully')
+        
+        // Force refresh the sales data
+        console.log('Refreshing sales data...')
+        const updatedSales = await fetchSales()
+        console.log('Sales data refreshed:', updatedSales.length, 'sales')
+        
+        // Update the state
+        setSales(updatedSales)
+        
+        // Close modal and reset state
+        setIsEditModalOpen(false)
+        setEditingSale(null)
+        
+        alert('Sale updated successfully!')
+      } else {
+        alert('No changes were detected')
       }
-
-      // Update paid amount if changed
-      if (saleData.paidAmount !== undefined) {
-        console.log('Updating paid amount to:', saleData.paidAmount)
-        await updateSale(editingSale.id, { 
-          paid_amount: saleData.paidAmount
-        })
-      }
-
-      console.log('Sale update completed successfully')
-      const updatedSales = await fetchSales()
-      setSales(updatedSales)
-      setIsEditModalOpen(false)
-      setEditingSale(null)
     } catch (error) {
       console.error('Sale update error:', error)
-      alert(error instanceof Error ? error.message : 'Failed to update sale')
+      alert('Failed to update sale: ' + (error instanceof Error ? error.message : 'Unknown error'))
     } finally {
       setSaving(false)
     }
