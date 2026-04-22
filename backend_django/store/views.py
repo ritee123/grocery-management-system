@@ -4,6 +4,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.authtoken.models import Token
 import os
+from django.db.models.deletion import RestrictedError
 from django.db.models import Sum, Count, F
 from django.db.models.functions import TruncMonth
 from datetime import datetime, timedelta
@@ -18,6 +19,27 @@ from .serializers import (
 class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
+
+    def destroy(self, request, *args, **kwargs):
+        customer = self.get_object()
+        force_delete = request.query_params.get("force", "false").lower() == "true"
+
+        if force_delete:
+            # Delete related sales first so RESTRICT foreign key doesn't block customer removal.
+            Sale.objects.filter(customer=customer).delete()
+            customer.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        try:
+            customer.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        except RestrictedError:
+            return Response(
+                {
+                    "detail": "This customer has sales records. Delete with force=true to remove customer and related sales."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()

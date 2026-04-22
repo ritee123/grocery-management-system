@@ -248,7 +248,7 @@ export async function updateCustomer(
 }
 
 export async function deleteCustomer(id: string) {
-  await deleteJson(`/api/customers/${id}/`)
+  await deleteJson(`/api/customers/${id}/?force=true`)
 }
 
 export async function createProduct(payload: {
