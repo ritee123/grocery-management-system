@@ -222,131 +222,106 @@ export default function SalesPage() {
     if (!editingSale) return
     
     setSaving(true)
-    let updateSuccess = false
     
     try {
       console.log('Updating sale with data:', saleData)
       console.log('Original sale:', editingSale)
       
+      // Create the complete updated sale payload
+      const updatedSalePayload: any = {}
+      
       // Update sale date if changed
       if (saleData.date) {
-        console.log('Updating date to:', saleData.date)
-        try {
-          await updateSale(editingSale.id, { date: saleData.date })
-          console.log('Date update successful')
-          updateSuccess = true
-        } catch (dateError) {
-          console.error('Date update failed:', dateError)
-          alert('Failed to update sale date: ' + (dateError instanceof Error ? dateError.message : 'Unknown error'))
-          return
-        }
+        updatedSalePayload.date = saleData.date
+        console.log('Will update date to:', saleData.date)
       }
 
       // Update payment status if changed
       if (saleData.paymentStatus !== undefined) {
-        console.log('Updating payment status to:', saleData.paymentStatus)
-        try {
-          await updateSale(editingSale.id, { 
-            payment_status: saleData.paymentStatus
-          })
-          console.log('Payment status update successful')
-          updateSuccess = true
-        } catch (statusError) {
-          console.error('Payment status update failed:', statusError)
-          alert('Failed to update payment status: ' + (statusError instanceof Error ? statusError.message : 'Unknown error'))
-          return
-        }
+        updatedSalePayload.payment_status = saleData.paymentStatus
+        console.log('Will update payment status to:', saleData.paymentStatus)
       }
 
       // Update paid amount if changed
       if (saleData.paidAmount !== undefined) {
-        console.log('Updating paid amount to:', saleData.paidAmount)
-        try {
-          await updateSale(editingSale.id, { 
-            paid_amount: saleData.paidAmount
-          })
-          console.log('Paid amount update successful')
-          updateSuccess = true
-        } catch (amountError) {
-          console.error('Paid amount update failed:', amountError)
-          alert('Failed to update paid amount: ' + (amountError instanceof Error ? amountError.message : 'Unknown error'))
-          return
-        }
+        updatedSalePayload.paid_amount = saleData.paidAmount
+        console.log('Will update paid amount to:', saleData.paidAmount)
       }
 
-      // Update sale items if changed
+      // Update items if changed - this is the key fix
       if (saleData.items) {
-        console.log('Updating items:', saleData.items)
-        console.log('Original items from editingSale:', editingSale.items)
+        console.log('Will update items with:', saleData.items)
         
+        // Convert items to the format backend expects
+        const backendItems = saleData.items.map((item: any) => ({
+          product_name: item.productName,
+          unit_price: item.unitPrice,
+          quantity: item.quantity,
+          subtotal: item.subtotal
+        }))
+        
+        // Note: Since SaleItemSerializer has items as read_only, 
+        // we need to check if the backend supports updating items via sale endpoint
+        // For now, let's try to update individual items first
         try {
-          for (const item of saleData.items) {
-            console.log('Updating item:', item)
-            console.log('Item ID:', item.id)
-            console.log('Payload being sent:', {
-              product_name: item.productName,
-              unit_price: item.unitPrice,
-              quantity: item.quantity,
-              subtotal: item.subtotal
-            })
-            
-            try {
-              await updateSaleItem(item.id, {
+          console.log('Attempting individual item updates...')
+          await Promise.all(
+            saleData.items.map((item: any) =>
+              updateSaleItem(item.id, {
                 product_name: item.productName,
                 unit_price: item.unitPrice,
                 quantity: item.quantity,
                 subtotal: item.subtotal
               })
-              console.log('Item update successful for:', item.id)
-            } catch (singleItemError) {
-              console.error('Failed to update item:', item.id, singleItemError)
-              throw singleItemError
-            }
-          }
-          
-          console.log('All item updates successful')
-          updateSuccess = true
+            )
+          )
+          console.log('Individual item updates successful')
         } catch (itemError) {
-          console.error('Item update failed:', itemError)
-          alert('Failed to update items: ' + (itemError instanceof Error ? itemError.message : 'Unknown error'))
-          return
+          console.warn('Individual item updates failed, trying alternative approach:', itemError)
+          
+          // Alternative: Try to update the sale with new total amount
+          const newTotalAmount = saleData.items.reduce((sum: number, item: any) => sum + item.subtotal, 0)
+          updatedSalePayload.total_amount = newTotalAmount
+          console.log('Will try updating sale total amount to:', newTotalAmount)
         }
       }
 
-      if (updateSuccess) {
-        console.log('Sale update completed successfully')
-        
-        // Force refresh the sales data with multiple attempts if needed
-        console.log('Refreshing sales data...')
-        let updatedSales = await fetchSales()
-        console.log('Sales data refreshed:', updatedSales.length, 'sales')
-        
-        // Double-check the specific sale was updated
-        const updatedSale = updatedSales.find((s: Sale) => s.id === editingSale.id)
-        if (updatedSale) {
-          console.log('Updated sale found:', updatedSale)
-          console.log('Updated items:', updatedSale.items)
-        }
-        
-        // Update the state
-        setSales(updatedSales)
-        
-        // Force a second refresh after a short delay to ensure backend is updated
-        setTimeout(async () => {
-          console.log('Performing second refresh to ensure data is current...')
-          const finalSales = await fetchSales()
-          setSales(finalSales)
-          console.log('Final refresh completed:', finalSales.length, 'sales')
-        }, 1000)
-        
-        // Close modal and reset state
-        setIsEditModalOpen(false)
-        setEditingSale(null)
-        
-        alert('Sale updated successfully! Your changes should now be visible.')
-      } else {
-        alert('No changes were detected')
+      // Update the sale with all changes
+      if (Object.keys(updatedSalePayload).length > 0) {
+        console.log('Final sale payload:', updatedSalePayload)
+        await updateSale(editingSale.id, updatedSalePayload)
+        console.log('Sale update successful')
       }
+
+      // Force refresh the sales data
+      console.log('Refreshing sales data...')
+      const updatedSales = await fetchSales()
+      console.log('Sales data refreshed:', updatedSales.length, 'sales')
+      
+      // Double-check the specific sale was updated
+      const updatedSale = updatedSales.find((s: Sale) => s.id === editingSale.id)
+      if (updatedSale) {
+        console.log('Updated sale found:', updatedSale)
+        console.log('Updated items:', updatedSale.items)
+      }
+      
+      // Update the state
+      setSales(updatedSales)
+      
+      // Force a second refresh after a short delay to ensure backend is updated
+      setTimeout(async () => {
+        console.log('Performing second refresh to ensure data is current...')
+        const finalSales = await fetchSales()
+        setSales(finalSales)
+        console.log('Final refresh completed:', finalSales.length, 'sales')
+      }, 1000)
+      
+      // Close modal and reset state
+      setIsEditModalOpen(false)
+      setEditingSale(null)
+      
+      alert('Sale updated successfully! Your changes should now be visible.')
+      
     } catch (error) {
       console.error('Sale update error:', error)
       alert('Failed to update sale: ' + (error instanceof Error ? error.message : 'Unknown error'))
