@@ -152,7 +152,7 @@ export default function SalesPage() {
       paid_amount: paidAmount,
       payment_method: saleData.paymentMethod as 'cash' | 'online',
       payment_status: saleData.paymentStatus as 'paid' | 'unpaid' | 'partial',
-      date: new Date().toISOString(),
+      date: saleData.date.toISOString(),
     })
 
     await Promise.all(

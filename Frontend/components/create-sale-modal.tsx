@@ -6,7 +6,10 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { ShoppingCart, Plus, Trash2 } from 'lucide-react'
+import { ShoppingCart, Plus, Trash2, Calendar } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar as CalendarComponent } from '@/components/ui/calendar'
+import { format } from 'date-fns'
 import {
   Select,
   SelectContent,
@@ -41,6 +44,7 @@ export function CreateSaleModal({
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [paymentStatus, setPaymentStatus] = useState('paid')
   const [notes, setNotes] = useState('')
+  const [saleDate, setSaleDate] = useState<Date>(new Date())
   const [saving, setSaving] = useState(false)
 
   const addItem = () => {
@@ -106,6 +110,7 @@ export function CreateSaleModal({
       paymentMethod,
       paymentStatus,
       notes,
+      date: saleDate,
     }
 
     setSaving(true)
@@ -128,6 +133,7 @@ export function CreateSaleModal({
     setPaymentMethod('cash')
     setPaymentStatus('paid')
     setNotes('')
+    setSaleDate(new Date())
     onOpenChange(false)
   }
 
@@ -148,7 +154,29 @@ export function CreateSaleModal({
           {/* Customer Information */}
           <div className="bg-muted/30 p-4 rounded-lg">
             <h3 className="font-semibold text-base mb-4">Customer Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium mb-2 block">Sale Date</label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left font-normal bg-white"
+                    >
+                      <Calendar className="mr-2 h-4 w-4" />
+                      {saleDate ? format(saleDate, "PPP") : "Pick a date"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="single"
+                      selected={saleDate}
+                      onSelect={(date) => date && setSaleDate(date)}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
               <div>
                 <label className="text-sm font-medium mb-2 block">Customer</label>
                 <Select value={selectedCustomerId} onValueChange={setSelectedCustomerId}>
