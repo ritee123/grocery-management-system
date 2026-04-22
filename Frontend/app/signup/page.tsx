@@ -72,8 +72,31 @@ export default function SignupPage() {
 
           {/* Form */}
           <form onSubmit={onSubmit} className="space-y-6">
-      
-          
+            {/* Username */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-800">Username *</label>
+              <Input
+                type="text"
+                placeholder="ritee123"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
+
+            {/* Email */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-800">Email *</label>
+              <Input
+                type="email"
+                placeholder="you@example.com"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                required
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              />
+            </div>
 
             {/* Full Name */}
             <div className="space-y-2">
@@ -173,7 +196,7 @@ export default function SignupPage() {
             {/* Submit Button */}
             <Button
               type="submit"
-              disabled={loading || !form.name || !form.password}
+              disabled={loading || !form.username || !form.email || !form.password}
               className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold py-3 rounded-lg text-base transition-colors disabled:opacity-50 h-12"
             >
               {loading ? 'Creating account...' : 'Create Account'}
