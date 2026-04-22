@@ -303,6 +303,9 @@ export default function SalesPage() {
       if (updatedSale) {
         console.log('Updated sale found:', updatedSale)
         console.log('Updated items:', updatedSale.items)
+        
+        // Update the specific sale in the editingSale state to ensure re-editing shows correct data
+        setEditingSale(updatedSale)
       }
       
       // Update the state
@@ -313,6 +316,13 @@ export default function SalesPage() {
         console.log('Performing second refresh to ensure data is current...')
         const finalSales = await fetchSales()
         setSales(finalSales)
+        
+        // Also update the editingSale with the final data
+        const finalUpdatedSale = finalSales.find((s: Sale) => s.id === editingSale.id)
+        if (finalUpdatedSale) {
+          setEditingSale(finalUpdatedSale)
+        }
+        
         console.log('Final refresh completed:', finalSales.length, 'sales')
       }, 1000)
       

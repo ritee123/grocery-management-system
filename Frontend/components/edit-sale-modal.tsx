@@ -52,7 +52,7 @@ export function EditSaleModal({
 
   const updateItem = (
     id: string,
-    field: 'price' | 'quantity',
+    field: 'name' | 'price' | 'quantity',
     value: any
   ) => {
     setItems(
@@ -173,7 +173,15 @@ export function EditSaleModal({
                       {/* Item Name */}
                       <div className="md:col-span-2">
                         <label className="text-xs text-muted-foreground md:hidden">Item name</label>
-                        <div className="mt-1 md:mt-0 font-medium">{item.name}</div>
+                        <Input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) =>
+                            updateItem(item.id, 'name', e.target.value)
+                          }
+                          className="h-10 w-full mt-1 md:mt-0"
+                          placeholder="Enter item name"
+                        />
                       </div>
 
                       {/* Price */}
