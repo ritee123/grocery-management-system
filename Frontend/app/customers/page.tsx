@@ -179,7 +179,7 @@ export default function CustomersPage() {
   }
 
   const handleAddCustomer = async () => {
-    if (formData.name && formData.phone) {
+    if (formData.name) {
       setSavingCustomer(true)
       try {
         if (editingId) {
@@ -399,7 +399,7 @@ export default function CustomersPage() {
               {editingId ? '✏️ Edit Customer' : '👤 Add New Customer'}
             </DialogTitle>
             <DialogDescription>
-              Enter customer details. Name and phone are required.
+              Enter customer details. Only name is required.
             </DialogDescription>
           </DialogHeader>
 
@@ -418,7 +418,7 @@ export default function CustomersPage() {
               </div>
               <div>
                 <label className="text-sm font-medium">
-                  Phone Number <span className="text-red-500">*</span>
+                  Phone Number
                 </label>
                 <Input
                   value={formData.phone}
@@ -456,7 +456,7 @@ export default function CustomersPage() {
             <Button
               type="button"
               onClick={handleAddCustomer}
-              disabled={savingCustomer || !formData.name || !formData.phone}
+              disabled={savingCustomer || !formData.name}
             >
               {savingCustomer ? 'Saving...' : editingId ? 'Update Customer' : 'Add Customer'}
             </Button>
