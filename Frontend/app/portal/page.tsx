@@ -85,6 +85,7 @@ export default function CustomerPortalPage() {
   }
 
   const currentUser = getAuthUser()
+  const displayUsername = currentUser?.username || currentUser?.name || 'Customer'
 
   return (
     <div className="flex h-screen bg-background">
@@ -123,7 +124,7 @@ export default function CustomerPortalPage() {
               <User className="w-4 h-4 text-primary" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm text-sidebar-foreground truncate">{currentUser?.name || 'Customer'}</p>
+              <p className="font-medium text-sm text-sidebar-foreground truncate">{displayUsername}</p>
               <p className="text-xs text-sidebar-foreground/70 truncate">{currentUser?.email || 'customer@example.com'}</p>
             </div>
           </div>
@@ -181,26 +182,24 @@ export default function CustomerPortalPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-1 overflow-auto bg-background">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold text-foreground">{displayUsername}</h1>
+          </div>
           {/* Dashboard Tab Content */}
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
               {/* Welcome Card */}
               <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
                 <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h2 className="text-2xl font-bold mb-2">Welcome back, {currentUser?.name || 'Customer'}!</h2>
-                      <p className="text-green-100">Here's an overview of your account activity</p>
-                    </div>
-                    <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-                      <User className="w-8 h-8 text-white" />
-                    </div>
+                  <div>
+                    <h2 className="text-2xl font-bold mb-2">Welcome back, {displayUsername}!</h2>
+                    <p className="text-green-100">Here's an overview of your account activity</p>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Card className="border-0 shadow-sm">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -243,19 +242,6 @@ export default function CustomerPortalPage() {
                   </CardContent>
                 </Card>
 
-                <Card className="border-0 shadow-sm">
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-600">Total Orders</p>
-                        <p className="text-2xl font-bold text-gray-900">{sales.length}</p>
-                      </div>
-                      <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                        <Package className="w-6 h-6 text-purple-600" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
 
               {/* Recent Activity */}
@@ -530,11 +516,8 @@ export default function CustomerPortalPage() {
                   <div className="space-y-6">
                     {/* Profile Header */}
                     <div className="flex items-center space-x-4">
-                      <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center">
-                        <User className="w-10 h-10 text-green-600" />
-                      </div>
                       <div>
-                        <h3 className="text-xl font-semibold text-gray-900">{currentUser?.name || 'Customer'}</h3>
+                        <h3 className="text-xl font-semibold text-gray-900">{displayUsername}</h3>
                         <p className="text-gray-600">{currentUser?.email || 'customer@example.com'}</p>
                         <Badge variant="default" className="bg-green-100 text-green-800 mt-2">
                           Active Account
@@ -575,8 +558,8 @@ export default function CustomerPortalPage() {
                         <h4 className="font-medium text-gray-900">Account Statistics</h4>
                         <div className="space-y-3">
                           <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Total Orders</span>
-                            <span className="font-medium">{sales.length}</span>
+                            <span className="text-sm text-gray-600">Username</span>
+                            <span className="font-medium">{displayUsername}</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-sm text-gray-600">Total Spent</span>
