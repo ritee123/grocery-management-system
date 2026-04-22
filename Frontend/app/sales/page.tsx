@@ -260,13 +260,14 @@ export default function SalesPage() {
         }
       }
 
-      // Update sale items if changed (try but don't fail if not supported)
+      // Update sale items if changed
       if (saleData.items) {
         console.log('Updating items:', saleData.items)
         try {
           await Promise.all(
             saleData.items.map((item: any) =>
               updateSaleItem(item.id, {
+                product_name: item.productName,
                 unit_price: item.unitPrice,
                 quantity: item.quantity,
                 subtotal: item.subtotal
@@ -276,8 +277,9 @@ export default function SalesPage() {
           console.log('Item updates successful')
           updateSuccess = true
         } catch (itemError) {
-          console.warn('Item update failed, but continuing:', itemError)
-          alert('Item updates failed, but other changes were saved: ' + (itemError instanceof Error ? itemError.message : 'Unknown error'))
+          console.error('Item update failed:', itemError)
+          alert('Failed to update items: ' + (itemError instanceof Error ? itemError.message : 'Unknown error'))
+          return
         }
       }
 
