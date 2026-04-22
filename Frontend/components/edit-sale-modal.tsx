@@ -8,7 +8,7 @@ import { Calendar, Edit, Plus, Trash2 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { format } from 'date-fns'
-import { Sale, SaleItem } from '@/lib/store'
+import { Sale } from '@/lib/store'
 
 interface EditSaleModalProps {
   open: boolean
@@ -30,18 +30,18 @@ export function EditSaleModal({
   useEffect(() => {
     if (sale) {
       setSaleDate(new Date(sale.date))
-      setItems(sale.items.map((item, index) => ({
-        id: `${index + 1}`,
+      setItems(sale.items.map(item => ({
+        id: item.productId || item.productName,
         name: item.productName,
         price: item.unitPrice,
-        quantity: item.quantity,
+        quantity: item.quantity
       })))
     }
   }, [sale])
 
   const updateItem = (
     id: string,
-    field: 'name' | 'price' | 'quantity',
+    field: 'price' | 'quantity',
     value: any
   ) => {
     setItems(
@@ -51,46 +51,27 @@ export function EditSaleModal({
     )
   }
 
-  const removeItem = (id: string) => {
-    if (items.length > 1) {
-      setItems(items.filter((item) => item.id !== id))
-    }
-  }
-
-  const addItem = () => {
-    setItems([
-      ...items,
-      { id: `${items.length + 1}`, name: '', price: 0, quantity: 1 },
-    ])
-  }
-
-  const calculateSubtotal = () => {
+  const calculateTotal = () => {
     return items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   }
 
   const handleSave = async () => {
     if (!sale) return
 
-    const validItems = items.filter(
-      (item) => item.name && item.price > 0 && item.quantity > 0
-    )
-
-    if (validItems.length === 0) {
-      alert('Please add at least one valid item')
-      return
-    }
-
     setSaving(true)
     try {
+      const updatedItems = items.map(item => ({
+        id: item.id,
+        productName: item.name,
+        unitPrice: item.price,
+        quantity: item.quantity,
+        subtotal: item.price * item.quantity
+      }))
+
       await onUpdateSale({
         date: saleDate.toISOString(),
-        items: validItems.map((item) => ({
-          productName: item.name,
-          unitPrice: item.price,
-          quantity: item.quantity,
-          subtotal: item.price * item.quantity,
-        })),
-        totalAmount: calculateSubtotal(),
+        items: updatedItems,
+        totalAmount: calculateTotal()
       })
       handleClose()
     } catch (error) {
@@ -113,22 +94,21 @@ export function EditSaleModal({
       <DialogContent className="sm:max-w-4xl max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
         <div className="px-6 pt-6 pb-2 border-b">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <DialogTitle className="flex items-center gap-2">
               <Edit className="w-5 h-5" />
               Edit Sale
             </DialogTitle>
             <DialogDescription>
-              Edit sale date and items. Current date: {format(new Date(sale.date), 'PPP')}
+              Edit the date and item amounts for this sale.
             </DialogDescription>
           </DialogHeader>
         </div>
 
         <div className="px-6 py-4 space-y-6 overflow-y-auto min-h-0">
-          {/* Sale Date */}
+          {/* Date Section */}
           <div className="bg-muted/30 p-4 rounded-lg">
             <h3 className="font-semibold text-base mb-4">Sale Date</h3>
             <div className="max-w-sm">
-              <label className="text-sm font-medium mb-2 block">New Sale Date</label>
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -151,17 +131,16 @@ export function EditSaleModal({
             </div>
           </div>
 
-          {/* Edit Items */}
+          {/* Items Section */}
           <div className="bg-muted/30 p-4 rounded-lg">
             <h3 className="font-semibold text-base mb-4">Edit Items</h3>
             <div className="border rounded-lg overflow-hidden bg-white">
               {/* Header Row */}
-              <div className="hidden md:grid md:grid-cols-12 gap-3 bg-slate-100 px-4 py-3 font-semibold text-sm border-b">
-                <div className="md:col-span-5">Item name</div>
-                <div className="md:col-span-2 text-right">Price (Rs)</div>
-                <div className="md:col-span-3 text-center">Quantity</div>
+              <div className="hidden md:grid md:grid-cols-5 gap-3 bg-slate-100 px-4 py-3 font-semibold text-sm border-b">
+                <div className="md:col-span-2">Item Name</div>
+                <div className="md:col-span-1 text-right">Price (Rs)</div>
+                <div className="md:col-span-1 text-center">Quantity</div>
                 <div className="md:col-span-1 text-right">Total</div>
-                <div className="md:col-span-1 text-center"> </div>
               </div>
 
               {/* Item Rows */}
@@ -171,21 +150,16 @@ export function EditSaleModal({
                   return (
                     <div
                       key={item.id}
-                      className="grid grid-cols-1 md:grid-cols-12 gap-3 p-4 border-b hover:bg-slate-50 transition-colors items-end"
+                      className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border-b hover:bg-slate-50 transition-colors items-end"
                     >
                       {/* Item Name */}
-                      <div className="md:col-span-5">
+                      <div className="md:col-span-2">
                         <label className="text-xs text-muted-foreground md:hidden">Item name</label>
-                        <Input
-                          placeholder="Enter item name"
-                          value={item.name}
-                          onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                          className="h-10 w-full mt-1 md:mt-0"
-                        />
+                        <div className="mt-1 md:mt-0 font-medium">{item.name}</div>
                       </div>
 
                       {/* Price */}
-                      <div className="md:col-span-2">
+                      <div className="md:col-span-1">
                         <label className="text-xs text-muted-foreground md:hidden">Price (Rs)</label>
                         <Input
                           type="number"
@@ -199,7 +173,7 @@ export function EditSaleModal({
                       </div>
 
                       {/* Quantity */}
-                      <div className="md:col-span-3">
+                      <div className="md:col-span-1">
                         <label className="text-xs text-muted-foreground md:hidden">Quantity</label>
                         <div className="flex items-center justify-center gap-1 bg-white border rounded-lg mt-1 md:mt-0">
                           <Button
@@ -237,51 +211,20 @@ export function EditSaleModal({
                         <label className="text-xs text-muted-foreground md:hidden">Total (Rs)</label>
                         <div className="mt-1 md:mt-0">Rs {itemTotal.toFixed(2)}</div>
                       </div>
-
-                      {/* Delete Button */}
-                      <div className="md:col-span-1 flex justify-end md:justify-center">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeItem(item.id)}
-                          disabled={items.length === 1}
-                          className="h-10 w-10 p-0"
-                        >
-                          <Trash2 className="w-4 h-4 text-red-500" />
-                        </Button>
-                      </div>
                     </div>
                   )
                 })}
               </div>
             </div>
-            <Button
-              variant="outline"
-              onClick={addItem}
-              className="mt-4 w-full gap-2 h-10"
-            >
-              <Plus className="w-4 h-4" />
-              Add Item
-            </Button>
           </div>
 
           {/* Summary */}
           <div className="bg-muted/30 p-4 rounded-lg">
             <h3 className="font-semibold text-base mb-4">Summary</h3>
-            <div className="bg-white rounded-lg p-4 space-y-3">
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Customer</span>
-                  <span className="font-medium">{sale.customerName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Payment Status</span>
-                  <span className="font-medium">{sale.paymentStatus}</span>
-                </div>
-                <div className="border-t pt-2 flex justify-between">
-                  <span className="font-semibold">Total Amount</span>
-                  <span className="text-lg font-bold text-green-600">Rs {calculateSubtotal().toFixed(2)}</span>
-                </div>
+            <div className="bg-white rounded-lg p-4">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold">Total Amount</span>
+                <span className="text-lg font-bold text-green-600">Rs {calculateTotal().toFixed(2)}</span>
               </div>
             </div>
           </div>

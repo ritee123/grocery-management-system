@@ -37,7 +37,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { format } from 'date-fns'
-import { createPayment, createSale, createSaleItem, deleteSale, fetchBootstrapData, fetchSales, updateSale } from '@/lib/api'
+import { createPayment, createSale, createSaleItem, deleteSale, fetchBootstrapData, fetchSales, updateSale, updateSaleItem } from '@/lib/api'
 import { Sale, SaleItem, Product, Customer } from '@/lib/store'
 import { CreateSaleModal } from '@/components/create-sale-modal'
 import { EditSaleModal } from '@/components/edit-sale-modal'
@@ -207,8 +207,33 @@ export default function SalesPage() {
     if (!editingSale) return
     
     try {
-      // Update the sale with date and items
-      await updateSale(editingSale.id, saleData)
+      // Update sale date if changed
+      if (saleData.date) {
+        await updateSale(editingSale.id, { date: saleData.date })
+      }
+
+      // Update sale items if changed
+      if (saleData.items) {
+        await Promise.all(
+          saleData.items.map((item: any) =>
+            updateSaleItem(item.id, {
+              unit_price: item.unitPrice,
+              quantity: item.quantity,
+              subtotal: item.subtotal
+            })
+          )
+        )
+      }
+
+      // Update total amount if changed
+      if (saleData.totalAmount !== undefined) {
+        await updateSale(editingSale.id, { 
+          paid_amount: editingSale.paidAmount,
+          payment_status: editingSale.paymentStatus,
+          totalAmount: saleData.totalAmount 
+        })
+      }
+
       const updatedSales = await fetchSales()
       setSales(updatedSales)
       setIsEditModalOpen(false)

@@ -319,6 +319,7 @@ export async function updateSale(
     payment_status: 'paid' | 'unpaid' | 'partial'
     date?: string
     items?: Array<{
+      id: string
       productName: string
       unitPrice: number
       quantity: number
@@ -328,6 +329,18 @@ export async function updateSale(
   }>
 ) {
   return await patchJson(`/api/sales/${id}/`, payload)
+}
+
+export async function updateSaleItem(
+  id: string,
+  payload: {
+    product_name?: string
+    unit_price?: number
+    quantity?: number
+    subtotal?: number
+  }
+) {
+  return await patchJson(`/api/sale-items/${id}/`, payload)
 }
 
 export async function deleteSale(id: string) {
