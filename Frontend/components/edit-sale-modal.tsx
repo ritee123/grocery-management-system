@@ -31,13 +31,20 @@ export function EditSaleModal({
 
   useEffect(() => {
     if (sale) {
+      console.log('Edit modal received sale:', sale)
+      console.log('Sale items:', sale.items)
+      
       setSaleDate(new Date(sale.date))
-      setItems(sale.items.map(item => ({
+      
+      const mappedItems = sale.items.map(item => ({
         id: item.id, // Use the actual sale item ID
         name: item.productName,
         price: item.unitPrice,
         quantity: item.quantity
-      })))
+      }))
+      
+      console.log('Mapped items for editing:', mappedItems)
+      setItems(mappedItems)
       setPaymentStatus(sale.paymentStatus)
       setPaidAmount(sale.paidAmount || 0)
     }

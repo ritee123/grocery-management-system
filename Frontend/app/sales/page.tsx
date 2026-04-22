@@ -62,6 +62,20 @@ export default function SalesPage() {
     fetchBootstrapData()
       .then((data) => {
         if (cancelled) return
+        
+        // Debug: Check what sales data we're getting
+        console.log('Bootstrap data received:', data)
+        console.log('Sales count:', data.sales.length)
+        
+        // Check sales with items
+        const salesWithItems = data.sales.filter((sale: Sale) => sale.items && sale.items.length > 0)
+        console.log('Sales with items:', salesWithItems.length)
+        
+        if (salesWithItems.length > 0) {
+          console.log('Sample sale with items:', salesWithItems[0])
+          console.log('Sample items:', salesWithItems[0].items)
+        }
+        
         setSales(data.sales)
         setCustomers(data.customers)
         setProducts(data.products)
