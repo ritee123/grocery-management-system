@@ -39,11 +39,12 @@ export function EditCustomerModal({
   }, [customer])
 
   const calculateStats = () => {
-    const totalSales = customerSales.length
-    const totalAmount = customerSales.reduce((sum, sale) => sum + sale.totalAmount, 0)
-    const paidAmount = customerSales.reduce((sum, sale) => sum + (sale.paidAmount || 0), 0)
+    const sales = customerSales || []
+    const totalSales = sales.length
+    const totalAmount = sales.reduce((sum, sale) => sum + sale.totalAmount, 0)
+    const paidAmount = sales.reduce((sum, sale) => sum + (sale.paidAmount || 0), 0)
     const unpaidAmount = totalAmount - paidAmount
-    const lastSale = customerSales.length > 0 ? customerSales[0] : null
+    const lastSale = sales.length > 0 ? sales[0] : null
 
     return {
       totalSales,
@@ -180,7 +181,7 @@ export function EditCustomerModal({
           </div>
 
           {/* Recent Sales */}
-          {customerSales.length > 0 && (
+          {customerSales && customerSales.length > 0 && (
             <div className="bg-muted/30 p-4 rounded-lg">
               <h3 className="font-semibold text-base mb-4">Recent Sales (Last 5)</h3>
               <div className="border rounded-lg overflow-hidden bg-white">
