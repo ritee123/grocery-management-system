@@ -317,6 +317,7 @@ export async function updateSale(
   payload: Partial<{
     paid_amount: number
     payment_status: 'paid' | 'unpaid' | 'partial'
+    date?: string
   }>
 ) {
   return await patchJson(`/api/sales/${id}/`, payload)

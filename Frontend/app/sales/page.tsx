@@ -15,6 +15,7 @@ import {
   Clock,
   CreditCard,
   Banknote,
+  Edit,
 } from 'lucide-react'
 import {
   BarChart,
@@ -36,9 +37,10 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { format } from 'date-fns'
-import { createPayment, createSale, createSaleItem, deleteSale, fetchBootstrapData, fetchSales } from '@/lib/api'
+import { createPayment, createSale, createSaleItem, deleteSale, fetchBootstrapData, fetchSales, updateSale } from '@/lib/api'
 import { Sale, SaleItem, Product, Customer } from '@/lib/store'
 import { CreateSaleModal } from '@/components/create-sale-modal'
+import { EditSaleModal } from '@/components/edit-sale-modal'
 
 export default function SalesPage() {
   const [sales, setSales] = useState<Sale[]>([])
@@ -49,6 +51,8 @@ export default function SalesPage() {
   const [filterPaymentMethod, setFilterPaymentMethod] = useState<'all' | 'cash' | 'online'>('all')
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
+  const [editingSale, setEditingSale] = useState<Sale | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -194,6 +198,25 @@ export default function SalesPage() {
     }
   }
 
+  const handleEditSale = (sale: Sale) => {
+    setEditingSale(sale)
+    setIsEditModalOpen(true)
+  }
+
+  const handleUpdateSale = async (saleData: any) => {
+    if (!editingSale) return
+    
+    try {
+      await updateSale(editingSale.id, saleData)
+      const updatedSales = await fetchSales()
+      setSales(updatedSales)
+      setIsEditModalOpen(false)
+      setEditingSale(null)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to update sale')
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
@@ -217,6 +240,13 @@ export default function SalesPage() {
         customers={customers}
         products={products}
         onCreateSale={handleCreateSale}
+      />
+
+      <EditSaleModal
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
+        sale={editingSale}
+        onUpdateSale={handleUpdateSale}
       />
 
       {/* Stats Cards */}
@@ -519,14 +549,24 @@ export default function SalesPage() {
                       </span>
                     </td>
                     <td className="p-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteSale(sale.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <div className="flex gap-1 justify-end">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditSale(sale)}
+                          className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteSale(sale.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
