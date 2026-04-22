@@ -225,12 +225,12 @@ export default function SalesPage() {
         )
       }
 
-      // Update total amount if changed
-      if (saleData.totalAmount !== undefined) {
+      // Update payment status and amounts if changed
+      if (saleData.paymentStatus !== undefined || saleData.paidAmount !== undefined || saleData.totalAmount !== undefined) {
         await updateSale(editingSale.id, { 
-          paid_amount: editingSale.paidAmount,
-          payment_status: editingSale.paymentStatus,
-          totalAmount: saleData.totalAmount 
+          paid_amount: saleData.paidAmount || editingSale.paidAmount,
+          payment_status: saleData.paymentStatus || editingSale.paymentStatus,
+          totalAmount: saleData.totalAmount || editingSale.totalAmount
         })
       }
 

@@ -25,6 +25,8 @@ export function EditSaleModal({
 }: EditSaleModalProps) {
   const [saleDate, setSaleDate] = useState<Date>(new Date())
   const [items, setItems] = useState<Array<{ id: string; name: string; price: number; quantity: number }>>([])
+  const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid' | 'partial'>('paid')
+  const [paidAmount, setPaidAmount] = useState(0)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -36,6 +38,8 @@ export function EditSaleModal({
         price: item.unitPrice,
         quantity: item.quantity
       })))
+      setPaymentStatus(sale.paymentStatus)
+      setPaidAmount(sale.paidAmount || 0)
     }
   }, [sale])
 
@@ -68,10 +72,15 @@ export function EditSaleModal({
         subtotal: item.price * item.quantity
       }))
 
+      const totalAmount = calculateTotal()
+      const updatedPaidAmount = paymentStatus === 'paid' ? totalAmount : paymentStatus === 'unpaid' ? 0 : paidAmount
+
       await onUpdateSale({
         date: saleDate.toISOString(),
         items: updatedItems,
-        totalAmount: calculateTotal()
+        totalAmount,
+        paymentStatus,
+        paidAmount: updatedPaidAmount
       })
       handleClose()
     } catch (error) {
@@ -218,13 +227,86 @@ export function EditSaleModal({
             </div>
           </div>
 
+          {/* Payment Status */}
+          <div className="bg-muted/30 p-4 rounded-lg">
+            <h3 className="font-semibold text-base mb-4">Payment Status</h3>
+            <div className="bg-white rounded-lg p-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium mb-3 block">Payment Status</label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="payment-status-edit"
+                      value="paid"
+                      checked={paymentStatus === 'paid'}
+                      onChange={(e) => setPaymentStatus(e.target.value as 'paid' | 'unpaid' | 'partial')}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">Paid</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="payment-status-edit"
+                      value="unpaid"
+                      checked={paymentStatus === 'unpaid'}
+                      onChange={(e) => setPaymentStatus(e.target.value as 'paid' | 'unpaid' | 'partial')}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">Unpaid</span>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="payment-status-edit"
+                      value="partial"
+                      checked={paymentStatus === 'partial'}
+                      onChange={(e) => setPaymentStatus(e.target.value as 'paid' | 'unpaid' | 'partial')}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm">Partial Payment</span>
+                  </label>
+                </div>
+              </div>
+
+              {paymentStatus === 'partial' && (
+                <div>
+                  <label className="text-sm font-medium mb-2 block">Paid Amount</label>
+                  <Input
+                    type="number"
+                    value={paidAmount}
+                    onChange={(e) => setPaidAmount(parseFloat(e.target.value) || 0)}
+                    placeholder="Enter paid amount"
+                    className="bg-white"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Due: Rs {(calculateTotal() - paidAmount).toFixed(2)}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Summary */}
           <div className="bg-muted/30 p-4 rounded-lg">
             <h3 className="font-semibold text-base mb-4">Summary</h3>
-            <div className="bg-white rounded-lg p-4">
+            <div className="bg-white rounded-lg p-4 space-y-3">
               <div className="flex justify-between items-center">
                 <span className="font-semibold">Total Amount</span>
                 <span className="text-lg font-bold text-green-600">Rs {calculateTotal().toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Paid Amount</span>
+                <span className="font-semibold text-blue-600">
+                  Rs {paymentStatus === 'paid' ? calculateTotal() : paymentStatus === 'unpaid' ? 0 : paidAmount.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Due Amount</span>
+                <span className="font-semibold text-orange-600">
+                  Rs {paymentStatus === 'paid' ? 0 : paymentStatus === 'unpaid' ? calculateTotal() : (calculateTotal() - paidAmount).toFixed(2)}
+                </span>
               </div>
             </div>
           </div>

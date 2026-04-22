@@ -74,7 +74,7 @@ export default function CustomersPage() {
   const [loading, setLoading] = useState(true)
   const [savingCustomer, setSavingCustomer] = useState(false)
   const [savingPayment, setSavingPayment] = useState(false)
-  const [isEditCustomerModalOpen, setIsEditCustomerModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
 
   useEffect(() => {
@@ -206,14 +206,22 @@ export default function CustomersPage() {
   }
 
   const handleEdit = (customer: Customer) => {
-    setFormData({
-      name: customer.name,
-      phone: customer.phone,
-      email: customer.email,
-      address: customer.address,
-    })
-    setEditingId(customer.id)
-    setIsAddingCustomer(true)
+    setEditingCustomer(customer)
+    setIsEditModalOpen(true)
+  }
+
+  const handleUpdateCustomer = async (customerData: any) => {
+    if (!editingCustomer) return
+    
+    try {
+      await updateCustomer(editingCustomer.id, customerData)
+      const updatedCustomers = await fetchCustomers()
+      setCustomers(updatedCustomers)
+      setIsEditModalOpen(false)
+      setEditingCustomer(null)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to update customer')
+    }
   }
 
   const handleDelete = async (id: string) => {
@@ -226,25 +234,6 @@ export default function CustomersPage() {
         console.error('Failed to delete customer:', error)
         alert(error instanceof Error ? error.message : 'Failed to delete customer')
       }
-    }
-  }
-
-  const handleEditCustomer = (customer: Customer) => {
-    setEditingCustomer(customer)
-    setIsEditCustomerModalOpen(true)
-  }
-
-  const handleUpdateCustomer = async (customerData: any) => {
-    if (!editingCustomer) return
-    
-    try {
-      await updateCustomer(editingCustomer.id, customerData)
-      const updatedCustomers = await fetchCustomers()
-      setCustomers(updatedCustomers)
-      setIsEditCustomerModalOpen(false)
-      setEditingCustomer(null)
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Failed to update customer')
     }
   }
 
@@ -350,13 +339,14 @@ export default function CustomersPage() {
         customer={selectedCustomerForDetail}
         sales={sales}
         isOpen={isDetailModalOpen}
-        onClose={() => setSelectedCustomerForDetail(null)}
+        onClose={() => setIsDetailModalOpen(false)}
       />
 
       <EditCustomerModal
-        open={isEditCustomerModalOpen}
-        onOpenChange={setIsEditCustomerModalOpen}
+        open={isEditModalOpen}
+        onOpenChange={setIsEditModalOpen}
         customer={editingCustomer}
+        customerSales={sales.filter(sale => sale.customerId === editingCustomer?.id)}
         onUpdateCustomer={handleUpdateCustomer}
       />
       <div className="p-6 space-y-6">
@@ -572,7 +562,7 @@ export default function CustomersPage() {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" onClick={() => handleEditCustomer(customer)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                      <Button variant="ghost" size="sm" onClick={() => handleEdit(customer)} className="text-blue-600 hover:text-blue-700 hover:bg-blue-50">
                         <Edit className="w-4 h-4" />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleDelete(customer.id)} className="text-red-600 hover:text-red-700 hover:bg-red-50">
