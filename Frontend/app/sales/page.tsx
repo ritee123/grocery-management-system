@@ -207,6 +207,7 @@ export default function SalesPage() {
     if (!editingSale) return
     
     try {
+      // Update the sale with date and items
       await updateSale(editingSale.id, saleData)
       const updatedSales = await fetchSales()
       setSales(updatedSales)
