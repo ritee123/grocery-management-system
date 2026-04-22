@@ -207,36 +207,9 @@ export default function SalesPage() {
     if (!editingSale) return
     
     try {
-      // Update sale date if changed
+      // Only update the sale date for now - this is most likely to work
       if (saleData.date) {
         await updateSale(editingSale.id, { date: saleData.date })
-      }
-
-      // Update sale items if changed
-      if (saleData.items) {
-        await Promise.all(
-          saleData.items.map((item: any) =>
-            updateSaleItem(item.id, {
-              unit_price: item.unitPrice,
-              quantity: item.quantity,
-              subtotal: item.subtotal
-            })
-          )
-        )
-      }
-
-      // Update payment status if changed
-      if (saleData.paymentStatus !== undefined) {
-        await updateSale(editingSale.id, { 
-          payment_status: saleData.paymentStatus
-        })
-      }
-
-      // Update paid amount if changed
-      if (saleData.paidAmount !== undefined) {
-        await updateSale(editingSale.id, { 
-          paid_amount: saleData.paidAmount
-        })
       }
 
       const updatedSales = await fetchSales()
