@@ -199,6 +199,31 @@ export async function fetchExpenses() {
   return (data || []).map(parseExpense)
 }
 
+export async function createExpense(payload: {
+  category: 'fixed' | 'operational' | 'variable'
+  amount: number
+  description: string
+  date: string
+}) {
+  return await postJson('/api/expenses/', payload)
+}
+
+export async function updateExpense(
+  id: string,
+  payload: Partial<{
+    category: 'fixed' | 'operational' | 'variable'
+    amount: number
+    description: string
+    date: string
+  }>
+) {
+  return await patchJson(`/api/expenses/${id}/`, payload)
+}
+
+export async function deleteExpense(id: string) {
+  await deleteJson(`/api/expenses/${id}/`)
+}
+
 // --- Mutations (create operations) ---
 
 export async function createCustomer(payload: {

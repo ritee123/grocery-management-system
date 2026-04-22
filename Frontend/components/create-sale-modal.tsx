@@ -21,7 +21,7 @@ interface CreateSaleModalProps {
   onOpenChange: (open: boolean) => void
   customers: Customer[]
   products: Product[]
-  onCreateSale: (saleData: any) => void
+  onCreateSale: (saleData: any) => Promise<void>
 }
 
 export function CreateSaleModal({
@@ -41,6 +41,7 @@ export function CreateSaleModal({
   const [paymentMethod, setPaymentMethod] = useState('cash')
   const [paymentStatus, setPaymentStatus] = useState('paid')
   const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
 
   const addItem = () => {
     setItems([
@@ -74,7 +75,7 @@ export function CreateSaleModal({
   const subtotal = calculateSubtotal()
   const total = Math.max(0, subtotal - discount)
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const customer = customers.find((c) => c.id === selectedCustomerId)
     if (!selectedCustomerId || !customer) {
       alert('Please select a customer')
@@ -107,8 +108,15 @@ export function CreateSaleModal({
       notes,
     }
 
-    onCreateSale(saleData)
-    handleClose()
+    setSaving(true)
+    try {
+      await onCreateSale(saleData)
+      handleClose()
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to create sale')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleClose = () => {
@@ -389,11 +397,11 @@ export function CreateSaleModal({
         </div>
 
         <DialogFooter className="px-6 py-4 border-t bg-background">
-          <Button variant="outline" onClick={handleClose} className="h-10 px-6">
+          <Button variant="outline" onClick={handleClose} className="h-10 px-6" disabled={saving}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 h-10 px-6 text-white">
-            Save Sale
+          <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700 h-10 px-6 text-white" disabled={saving}>
+            {saving ? 'Saving...' : 'Save Sale'}
           </Button>
         </DialogFooter>
       </DialogContent>

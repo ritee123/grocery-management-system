@@ -36,7 +36,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import { format } from 'date-fns'
-import { fetchBootstrapData } from '@/lib/api'
+import { createPayment, createSale, createSaleItem, deleteSale, fetchBootstrapData, fetchSales } from '@/lib/api'
 import { Sale, SaleItem, Product, Customer } from '@/lib/store'
 import { CreateSaleModal } from '@/components/create-sale-modal'
 
@@ -141,38 +141,56 @@ export default function SalesPage() {
     return Array.from(revenueMap.values())
   }, [sales])
 
-  const handleCreateSale = (saleData: any) => {
-    const items: SaleItem[] = saleData.items.map((item: any) => ({
-      productId: '',
-      productName: item.name,
-      quantity: item.quantity,
-      unitPrice: item.price,
-      subtotal: item.total,
-    }))
+  const handleCreateSale = async (saleData: any) => {
+    const total = Number(saleData.total) || 0
+    const paidAmount = saleData.paymentStatus === 'paid' ? total : 0
 
-    const newSale: Sale = {
-      id: `SALE-${Date.now()}`,
-      customerId: '',
-      customerName: saleData.customerName,
-      totalAmount: saleData.total,
-      paidAmount: saleData.paymentStatus === 'paid' ? saleData.total : 0,
-      paymentMethod: saleData.paymentMethod as 'cash' | 'online',
-      paymentStatus: saleData.paymentStatus as 'paid' | 'unpaid' | 'partial',
-      items,
-      date: new Date(),
-      payments: saleData.paymentStatus === 'paid' 
-        ? [{ id: `pay-${Date.now()}`, amount: saleData.total, method: saleData.paymentMethod, date: new Date() }]
-        : [],
-      notes: saleData.notes,
+    const createdSale = await createSale({
+      customer: saleData.customerId,
+      customer_name: saleData.customerName,
+      total_amount: total,
+      paid_amount: paidAmount,
+      payment_method: saleData.paymentMethod as 'cash' | 'online',
+      payment_status: saleData.paymentStatus as 'paid' | 'unpaid' | 'partial',
+      date: new Date().toISOString(),
+    })
+
+    await Promise.all(
+      (saleData.items || []).map((item: any) =>
+        createSaleItem({
+          sale: createdSale.id,
+          product: null,
+          product_name: item.name,
+          quantity: Number(item.quantity) || 0,
+          unit_price: Number(item.price) || 0,
+          subtotal: Number(item.total) || 0,
+        })
+      )
+    )
+
+    if (paidAmount > 0) {
+      await createPayment({
+        sale: createdSale.id,
+        amount: paidAmount,
+        method: saleData.paymentMethod as 'cash' | 'online',
+        date: new Date().toISOString(),
+      })
     }
 
-    setSales([newSale, ...sales])
+    const updatedSales = await fetchSales()
+    setSales(updatedSales)
     setIsCreateModalOpen(false)
   }
 
-  const handleDeleteSale = (id: string) => {
+  const handleDeleteSale = async (id: string) => {
     if (confirm('Are you sure you want to delete this sale?')) {
-      setSales(sales.filter((s) => s.id !== id))
+      try {
+        await deleteSale(id)
+        const updatedSales = await fetchSales()
+        setSales(updatedSales)
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'Failed to delete sale')
+      }
     }
   }
 

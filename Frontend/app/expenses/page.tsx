@@ -13,7 +13,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Expense } from '@/lib/store'
-import { fetchExpenses } from '@/lib/api'
+import { createExpense, deleteExpense, fetchExpenses, updateExpense } from '@/lib/api'
 
 interface FormData {
   category: 'fixed' | 'operational' | 'variable'
@@ -51,6 +51,7 @@ export default function ExpensesPage() {
   const [filterCategory, setFilterCategory] = useState<'all' | 'fixed' | 'operational' | 'variable'>('all')
   const [isAddingExpense, setIsAddingExpense] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [savingExpense, setSavingExpense] = useState(false)
   const [formData, setFormData] = useState<FormData>({
     category: 'operational',
     amount: 0,
@@ -111,34 +112,39 @@ export default function ExpensesPage() {
 
   const totalExpenses = Object.values(expensesByCategory).reduce((a, b) => a + b, 0)
 
-  const handleAddExpense = () => {
-    if (formData.description && formData.amount > 0) {
+  const handleAddExpense = async () => {
+    if (!formData.description || formData.amount <= 0) return
+
+    setSavingExpense(true)
+    try {
       if (editingId) {
-        setExpenses(
-          expenses.map((e) =>
-            e.id === editingId
-              ? {
-                  ...e,
-                  ...formData,
-                }
-              : e
-          )
-        )
+        await updateExpense(editingId, {
+          category: formData.category,
+          amount: formData.amount,
+          description: formData.description,
+        })
         setEditingId(null)
       } else {
-        const newExpense: Expense = {
-          id: Date.now().toString(),
-          ...formData,
-          date: new Date(),
-        }
-        setExpenses([newExpense, ...expenses])
+        await createExpense({
+          category: formData.category,
+          amount: formData.amount,
+          description: formData.description,
+          date: new Date().toISOString(),
+        })
       }
+
+      const updatedExpenses = await fetchExpenses()
+      setExpenses(updatedExpenses)
       setFormData({
         category: 'operational',
         amount: 0,
         description: '',
       })
       setIsAddingExpense(false)
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to save expense')
+    } finally {
+      setSavingExpense(false)
     }
   }
 
@@ -152,9 +158,15 @@ export default function ExpensesPage() {
     setIsAddingExpense(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm('Are you sure you want to delete this expense?')) {
-      setExpenses(expenses.filter((e) => e.id !== id))
+      try {
+        await deleteExpense(id)
+        const updatedExpenses = await fetchExpenses()
+        setExpenses(updatedExpenses)
+      } catch (error) {
+        alert(error instanceof Error ? error.message : 'Failed to delete expense')
+      }
     }
   }
 
@@ -282,8 +294,8 @@ export default function ExpensesPage() {
               <Button variant="outline" onClick={handleCancel}>
                 Cancel
               </Button>
-              <Button onClick={handleAddExpense} className="bg-primary hover:bg-primary/90">
-                {editingId ? 'Update Expense' : 'Add Expense'}
+              <Button onClick={handleAddExpense} className="bg-primary hover:bg-primary/90" disabled={savingExpense}>
+                {savingExpense ? 'Saving...' : editingId ? 'Update Expense' : 'Add Expense'}
               </Button>
             </div>
           </CardContent>
