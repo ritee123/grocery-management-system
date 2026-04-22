@@ -225,12 +225,17 @@ export default function SalesPage() {
         )
       }
 
-      // Update payment status and amounts if changed
-      if (saleData.paymentStatus !== undefined || saleData.paidAmount !== undefined || saleData.totalAmount !== undefined) {
+      // Update payment status if changed
+      if (saleData.paymentStatus !== undefined) {
         await updateSale(editingSale.id, { 
-          paid_amount: saleData.paidAmount || editingSale.paidAmount,
-          payment_status: saleData.paymentStatus || editingSale.paymentStatus,
-          totalAmount: saleData.totalAmount || editingSale.totalAmount
+          payment_status: saleData.paymentStatus
+        })
+      }
+
+      // Update paid amount if changed
+      if (saleData.paidAmount !== undefined) {
+        await updateSale(editingSale.id, { 
+          paid_amount: saleData.paidAmount
         })
       }
 
@@ -239,6 +244,7 @@ export default function SalesPage() {
       setIsEditModalOpen(false)
       setEditingSale(null)
     } catch (error) {
+      console.error('Sale update error:', error)
       alert(error instanceof Error ? error.message : 'Failed to update sale')
     }
   }
