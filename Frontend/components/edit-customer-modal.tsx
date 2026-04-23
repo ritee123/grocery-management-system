@@ -61,19 +61,7 @@ export function EditCustomerModal({
   const [previousDueMonth, setPreviousDueMonth] = useState('')
   const [previousDueNotes, setPreviousDueNotes] = useState('')
   
-  // Unpaid amounts tracking state
-  const [unpaidAmounts, setUnpaidAmounts] = useState<Array<{
-    id: string
-    month: string
-    amount: number
-    notes: string
-    recordedDate: string
-  }>>([])
-  const [newUnpaidMonth, setNewUnpaidMonth] = useState('')
-  const [newUnpaidAmount, setNewUnpaidAmount] = useState('')
-  const [newUnpaidNotes, setNewUnpaidNotes] = useState('')
-  const [loadingUnpaid, setLoadingUnpaid] = useState(false)
-  
+    
   // Login credentials state
   const [loginUsername, setLoginUsername] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -90,22 +78,6 @@ export function EditCustomerModal({
       setHasLoginCredentials(!!customer.username)
       setLoginUsername(customer.username || '')
       setLoginPassword('') // Don't pre-fill password for security
-      
-      // Fetch unpaid amounts from backend
-      fetchUnpaidAmounts(customer.id)
-        .then((data) => {
-          const formattedData = data.map((item: any) => ({
-            id: item.id,
-            month: item.month,
-            amount: Number(item.amount),
-            notes: item.notes || '',
-            recordedDate: item.recorded_date
-          }))
-          setUnpaidAmounts(formattedData)
-        })
-        .catch((error) => {
-          console.error('Failed to fetch unpaid amounts:', error)
-        })
     }
   }, [customer])
 
@@ -228,78 +200,7 @@ export function EditCustomerModal({
     }
   }
 
-  const handleAddUnpaidAmount = async () => {
-    if (!customer) return
-    
-    const amount = Number(newUnpaidAmount)
-    if (!Number.isFinite(amount) || amount <= 0 || !newUnpaidMonth) {
-      alert('Please enter valid amount and select month')
-      return
-    }
-    
-    try {
-      setLoadingUnpaid(true)
-      const newUnpaid = await createUnpaidAmount({
-        customer: customer.id,
-        month: newUnpaidMonth,
-        amount: amount,
-        notes: newUnpaidNotes || ''
-      })
-      
-      // Add to local state
-      const formattedUnpaid = {
-        id: newUnpaid.id,
-        month: newUnpaid.month,
-        amount: Number(newUnpaid.amount),
-        notes: newUnpaid.notes || '',
-        recordedDate: newUnpaid.recorded_date
-      }
-      setUnpaidAmounts([...unpaidAmounts, formattedUnpaid])
-      
-      // Reset form
-      setNewUnpaidMonth('')
-      setNewUnpaidAmount('')
-      setNewUnpaidNotes('')
-      
-      alert(`Unpaid amount recorded for ${newUnpaidMonth}: Rs ${amount}`)
-    } catch (error) {
-      alert('Failed to record unpaid amount. Please try again.')
-      console.error('Error creating unpaid amount:', error)
-    } finally {
-      setLoadingUnpaid(false)
-    }
-  }
-
-  const handleRemoveUnpaidAmount = async (unpaidId: string) => {
-    if (!customer) return
-    
-    const unpaidToRemove = unpaidAmounts.find(u => u.id === unpaidId)
-    if (!unpaidToRemove) return
-    
-    if (!confirm(`Remove unpaid amount for ${unpaidToRemove.month}: Rs ${unpaidToRemove.amount}?`)) {
-      return
-    }
-    
-    try {
-      setLoadingUnpaid(true)
-      await deleteUnpaidAmount(unpaidId)
-      
-      // Remove from local state
-      setUnpaidAmounts(unpaidAmounts.filter((unpaid) => unpaid.id !== unpaidId))
-      
-      alert(`Removed unpaid amount for ${unpaidToRemove.month}: Rs ${unpaidToRemove.amount}`)
-    } catch (error) {
-      alert('Failed to remove unpaid amount. Please try again.')
-      console.error('Error deleting unpaid amount:', error)
-    } finally {
-      setLoadingUnpaid(false)
-    }
-  }
-
-  const getTotalUnpaidAmount = () => {
-    return unpaidAmounts.reduce((sum, unpaid) => sum + unpaid.amount, 0)
-  }
-
+  
   const handleUpdateLoginCredentials = async () => {
     if (!customer) return
     
@@ -573,68 +474,6 @@ export function EditCustomerModal({
             </div>
           </div>
 
-          {/* Current Due Payment Section */}
-          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
-            <h3 className="font-semibold text-base text-blue-800">Current Due Payment</h3>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-blue-700">Outstanding amount for current purchases</p>
-              <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
-                Current dues
-              </div>
-            </div>
-
-            {hasOutstanding ? (
-              <>
-                <div className="flex items-center justify-between bg-white rounded-lg p-3">
-                  <p className="text-sm text-blue-700">Total Outstanding:</p>
-                  <p className="text-lg font-bold text-blue-800">Rs {stats.unpaidAmount.toLocaleString()}</p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-blue-700 mb-1">Amount (Rs)</label>
-                    <Input
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder="Enter paid amount"
-                      className="bg-white border-blue-300"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-blue-700 mb-1">Payment Method</label>
-                    <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'cash' | 'online')}>
-                      <SelectTrigger className="bg-white border-blue-300">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="online">Online</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="lg:col-span-2 flex items-end">
-                    <Button
-                      onClick={handleSubmitPayment}
-                      disabled={savingPayment || !Number.isFinite(enteredAmount) || enteredAmount <= 0}
-                      className="w-full bg-blue-600 hover:bg-blue-700"
-                    >
-                      {savingPayment ? 'Recording...' : 'Record Current Payment'}
-                    </Button>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
-                <p className="text-sm text-green-700 font-medium">
-                  ✅ All current dues are cleared for this customer.
-                </p>
-              </div>
-            )}
-          </div>
-
           {/* Previous Month Due Payment Section */}
           <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg space-y-4">
             <h3 className="font-semibold text-base text-amber-800">Previous Month Due Payment</h3>
@@ -689,189 +528,6 @@ export function EditCustomerModal({
                   <SelectTrigger className="bg-white border-amber-300">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="online">Online</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-end">
-                <Button
-                  onClick={handlePreviousDuePayment}
-                  disabled={savingPayment || !previousDueAmount || !previousDueMonth}
-                  className="w-full bg-amber-600 hover:bg-amber-700"
-                >
-                  {savingPayment ? 'Recording...' : 'Record Previous Due'}
-                </Button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-amber-700 mb-1">Notes (Optional)</label>
-              <Input
-                type="text"
-                value={previousDueNotes}
-                onChange={(e) => setPreviousDueNotes(e.target.value)}
-                placeholder="Add notes about this previous due payment..."
-                className="bg-white border-amber-300"
-              />
-            </div>
-          </div>
-
-          {/* Unpaid Amounts Tracking Section */}
-          <div className="bg-red-50 border border-red-200 p-4 rounded-lg space-y-4">
-            <h3 className="font-semibold text-base text-red-800">Unpaid Amounts Tracking</h3>
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-red-700">Track unpaid amounts from previous months</p>
-              <div className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
-                Outstanding dues
-              </div>
-            </div>
-
-            {/* Total Unpaid Summary */}
-            <div className="flex items-center justify-between bg-white rounded-lg p-3">
-              <p className="text-sm text-red-700 font-medium">Total Tracked Unpaid:</p>
-              <p className="text-lg font-bold text-red-800">Rs {getTotalUnpaidAmount().toLocaleString()}</p>
-            </div>
-
-            {/* Add New Unpaid Amount */}
-            <div className="bg-white rounded-lg p-4 space-y-3">
-              <h4 className="text-sm font-medium text-red-800">Add New Unpaid Amount</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                  <label className="block text-xs font-medium text-red-700 mb-1">Month</label>
-                  <Select value={newUnpaidMonth} onValueChange={setNewUnpaidMonth}>
-                    <SelectTrigger className="bg-white border-red-300">
-                      <SelectValue placeholder="Select month" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="2025-03">March 2025</SelectItem>
-                      <SelectItem value="2025-02">February 2025</SelectItem>
-                      <SelectItem value="2025-01">January 2025</SelectItem>
-                      <SelectItem value="2024-12">December 2024</SelectItem>
-                      <SelectItem value="2024-11">November 2024</SelectItem>
-                      <SelectItem value="2024-10">October 2024</SelectItem>
-                      <SelectItem value="2024-09">September 2024</SelectItem>
-                      <SelectItem value="2024-08">August 2024</SelectItem>
-                      <SelectItem value="2024-07">July 2024</SelectItem>
-                      <SelectItem value="2024-06">June 2024</SelectItem>
-                      <SelectItem value="2024-05">May 2024</SelectItem>
-                      <SelectItem value="2024-04">April 2024</SelectItem>
-                      <SelectItem value="2024-03">March 2024</SelectItem>
-                      <SelectItem value="2024-02">February 2024</SelectItem>
-                      <SelectItem value="2024-01">January 2024</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-red-700 mb-1">Amount (Rs)</label>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={newUnpaidAmount}
-                    onChange={(e) => setNewUnpaidAmount(e.target.value)}
-                    placeholder="Enter unpaid amount"
-                    className="bg-white border-red-300"
-                  />
-                </div>
-                <div className="lg:col-span-2">
-                  <label className="block text-xs font-medium text-red-700 mb-1">Notes (Optional)</label>
-                  <Input
-                    type="text"
-                    value={newUnpaidNotes}
-                    onChange={(e) => setNewUnpaidNotes(e.target.value)}
-                    placeholder="Add notes about this unpaid amount..."
-                    className="bg-white border-red-300"
-                  />
-                </div>
-              </div>
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleAddUnpaidAmount}
-                  disabled={!newUnpaidAmount || !newUnpaidMonth || loadingUnpaid}
-                  className="bg-red-600 hover:bg-red-700"
-                >
-                  {loadingUnpaid ? 'Adding...' : 'Add Unpaid Amount'}
-                </Button>
-              </div>
-            </div>
-
-            {/* Unpaid Amounts List */}
-            {unpaidAmounts.length > 0 && (
-              <div className="bg-white rounded-lg p-4">
-                <h4 className="text-sm font-medium text-red-800 mb-3">Tracked Unpaid Amounts</h4>
-                <div className="space-y-2">
-                  {unpaidAmounts.map((unpaid) => (
-                    <div key={unpaid.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-red-800">{unpaid.month}</span>
-                          <span className="text-sm font-bold text-red-900">Rs {unpaid.amount.toLocaleString()}</span>
-                        </div>
-                        {unpaid.notes && (
-                          <p className="text-xs text-red-600 mt-1">{unpaid.notes}</p>
-                        )}
-                        <p className="text-xs text-red-500 mt-1">
-                          Recorded: {format(new Date(unpaid.recordedDate), 'dd MMM yyyy, HH:mm')}
-                        </p>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleRemoveUnpaidAmount(unpaid.id)}
-                        disabled={loadingUnpaid}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-100 border-red-300"
-                      >
-                        {loadingUnpaid ? 'Removing...' : 'Remove'}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {unpaidAmounts.length === 0 && (
-              <div className="bg-white rounded-lg p-6 text-center">
-                <p className="text-sm text-red-600">No unpaid amounts tracked yet.</p>
-                <p className="text-xs text-red-500 mt-1">Add unpaid amounts from previous months to track them here.</p>
-              </div>
-            )}
-          </div>
-
-          {/* Due Ledger Section */}
-          <div className="bg-muted/30 p-4 rounded-lg">
-            <h3 className="font-semibold text-base mb-4">Due Ledger by Month</h3>
-            {monthlyDueSummary.length > 0 ? (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm bg-white rounded-lg">
-                  <thead>
-                    <tr className="border-b text-left">
-                      <th className="p-2 pr-3">Month</th>
-                      <th className="p-2 pr-3 text-right">Opening Due</th>
-                      <th className="p-2 pr-3 text-right">New Sales</th>
-                      <th className="p-2 pr-3 text-right">Payments</th>
-                      <th className="p-2 text-right">Closing Due</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {monthlyDueSummary.map((row) => (
-                      <tr key={row.monthKey} className="border-b last:border-b-0">
-                        <td className="p-2 pr-3 font-medium">{row.monthLabel}</td>
-                        <td className="p-2 pr-3 text-right">Rs {row.openingDue.toLocaleString()}</td>
-                        <td className="p-2 pr-3 text-right">Rs {row.monthSales.toLocaleString()}</td>
-                        <td className="p-2 pr-3 text-right">Rs {row.monthPaid.toLocaleString()}</td>
-                        <td className="p-2 text-right font-semibold text-orange-600">Rs {row.closingDue.toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No monthly due records yet.</p>
-            )}
-          </div>
-
           {/* Payment Transactions Section */}
           <div className="bg-muted/30 p-4 rounded-lg space-y-3">
             <h3 className="font-semibold text-base">Payment Transactions</h3>
@@ -971,30 +627,19 @@ export function EditCustomerModal({
                       <th className="text-left p-3 text-sm font-medium">Date</th>
                       <th className="text-left p-3 text-sm font-medium">Amount</th>
                       <th className="text-center p-3 text-sm font-medium">Status</th>
-                      <th className="text-center p-3 text-sm font-medium">Method</th>
                     </tr>
                   </thead>
                   <tbody>
                     {customerSales.slice(0, 5).map((sale) => (
-                      <tr key={sale.id} className="border-b hover:bg-slate-50">
-                        <td className="p-3 text-sm">
-                          {format(new Date(sale.date), 'dd MMM yyyy')}
-                        </td>
-                        <td className="p-3 text-sm font-semibold">
-                          Rs {sale.totalAmount.toLocaleString()}
-                        </td>
-                        <td className="p-3 text-center">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            sale.paymentStatus === 'paid'
-                              ? 'bg-green-100 text-green-700'
-                              : sale.paymentStatus === 'partial'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-orange-100 text-orange-700'
-                          }`}>
-                            {sale.paymentStatus === 'paid' ? 'Paid' : sale.paymentStatus === 'partial' ? 'Partial' : 'Unpaid'}
-                          </span>
-                        </td>
-                        <td className="p-3 text-center text-sm">
+                      <tr key={sale.id} className="border-b last:border-b-0">
+                        <td className="p-2 pr-3 font-medium">{format(new Date(sale.date), 'dd MMM yyyy')}</td>
+                        <td className="p-2 pr-3 text-right">Rs {sale.totalAmount.toLocaleString()}</td>
+                        <td className="p-2 pr-3 text-right">
+                          {sale.paidAmount > 0 ? (
+                            <span className="text-green-600">Paid</span>
+                          ) : (
+                            <span className="text-orange-600">Unpaid</span>
+                          )}
                           {sale.paymentMethod === 'cash' ? 'Cash' : 'Online'}
                         </td>
                       </tr>
