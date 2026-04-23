@@ -59,6 +59,17 @@ export function EditCustomerModal({
   const [previousDueMethod, setPreviousDueMethod] = useState<'cash' | 'online'>('cash')
   const [previousDueMonth, setPreviousDueMonth] = useState('')
   const [previousDueNotes, setPreviousDueNotes] = useState('')
+  
+  // Unpaid amounts tracking state
+  const [unpaidAmounts, setUnpaidAmounts] = useState<Array<{
+    month: string
+    amount: number
+    notes: string
+    recordedDate: string
+  }>>([])
+  const [newUnpaidMonth, setNewUnpaidMonth] = useState('')
+  const [newUnpaidAmount, setNewUnpaidAmount] = useState('')
+  const [newUnpaidNotes, setNewUnpaidNotes] = useState('')
 
   useEffect(() => {
     if (customer) {
@@ -186,6 +197,40 @@ export function EditCustomerModal({
     } catch (error) {
       alert('Failed to record previous due payment. Please try again.')
     }
+  }
+
+  const handleAddUnpaidAmount = () => {
+    const amount = Number(newUnpaidAmount)
+    if (!Number.isFinite(amount) || amount <= 0 || !newUnpaidMonth) {
+      alert('Please enter valid amount and select month')
+      return
+    }
+    
+    const newUnpaid = {
+      month: newUnpaidMonth,
+      amount: amount,
+      notes: newUnpaidNotes,
+      recordedDate: new Date().toISOString()
+    }
+    
+    setUnpaidAmounts([...unpaidAmounts, newUnpaid])
+    
+    // Reset form
+    setNewUnpaidMonth('')
+    setNewUnpaidAmount('')
+    setNewUnpaidNotes('')
+    
+    alert(`Unpaid amount recorded for ${newUnpaidMonth}: Rs ${amount}`)
+  }
+
+  const handleRemoveUnpaidAmount = (index: number) => {
+    const unpaidToRemove = unpaidAmounts[index]
+    setUnpaidAmounts(unpaidAmounts.filter((_, i) => i !== index))
+    alert(`Removed unpaid amount for ${unpaidToRemove.month}: Rs ${unpaidToRemove.amount}`)
+  }
+
+  const getTotalUnpaidAmount = () => {
+    return unpaidAmounts.reduce((sum, unpaid) => sum + unpaid.amount, 0)
   }
 
   const startEditPayment = (payment: (typeof sortedPaymentTransactions)[number]) => {
@@ -453,6 +498,126 @@ export function EditCustomerModal({
                 className="bg-white border-amber-300"
               />
             </div>
+          </div>
+
+          {/* Unpaid Amounts Tracking Section */}
+          <div className="bg-red-50 border border-red-200 p-4 rounded-lg space-y-4">
+            <h3 className="font-semibold text-base text-red-800">Unpaid Amounts Tracking</h3>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-red-700">Track unpaid amounts from previous months</p>
+              <div className="text-xs text-red-600 bg-red-100 px-2 py-1 rounded">
+                Outstanding dues
+              </div>
+            </div>
+
+            {/* Total Unpaid Summary */}
+            <div className="flex items-center justify-between bg-white rounded-lg p-3">
+              <p className="text-sm text-red-700 font-medium">Total Tracked Unpaid:</p>
+              <p className="text-lg font-bold text-red-800">Rs {getTotalUnpaidAmount().toLocaleString()}</p>
+            </div>
+
+            {/* Add New Unpaid Amount */}
+            <div className="bg-white rounded-lg p-4 space-y-3">
+              <h4 className="text-sm font-medium text-red-800">Add New Unpaid Amount</h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-red-700 mb-1">Month</label>
+                  <Select value={newUnpaidMonth} onValueChange={setNewUnpaidMonth}>
+                    <SelectTrigger className="bg-white border-red-300">
+                      <SelectValue placeholder="Select month" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="2025-03">March 2025</SelectItem>
+                      <SelectItem value="2025-02">February 2025</SelectItem>
+                      <SelectItem value="2025-01">January 2025</SelectItem>
+                      <SelectItem value="2024-12">December 2024</SelectItem>
+                      <SelectItem value="2024-11">November 2024</SelectItem>
+                      <SelectItem value="2024-10">October 2024</SelectItem>
+                      <SelectItem value="2024-09">September 2024</SelectItem>
+                      <SelectItem value="2024-08">August 2024</SelectItem>
+                      <SelectItem value="2024-07">July 2024</SelectItem>
+                      <SelectItem value="2024-06">June 2024</SelectItem>
+                      <SelectItem value="2024-05">May 2024</SelectItem>
+                      <SelectItem value="2024-04">April 2024</SelectItem>
+                      <SelectItem value="2024-03">March 2024</SelectItem>
+                      <SelectItem value="2024-02">February 2024</SelectItem>
+                      <SelectItem value="2024-01">January 2024</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-red-700 mb-1">Amount (Rs)</label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={newUnpaidAmount}
+                    onChange={(e) => setNewUnpaidAmount(e.target.value)}
+                    placeholder="Enter unpaid amount"
+                    className="bg-white border-red-300"
+                  />
+                </div>
+                <div className="lg:col-span-2">
+                  <label className="block text-xs font-medium text-red-700 mb-1">Notes (Optional)</label>
+                  <Input
+                    type="text"
+                    value={newUnpaidNotes}
+                    onChange={(e) => setNewUnpaidNotes(e.target.value)}
+                    placeholder="Add notes about this unpaid amount..."
+                    className="bg-white border-red-300"
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={handleAddUnpaidAmount}
+                  disabled={!newUnpaidAmount || !newUnpaidMonth}
+                  className="bg-red-600 hover:bg-red-700"
+                >
+                  Add Unpaid Amount
+                </Button>
+              </div>
+            </div>
+
+            {/* Unpaid Amounts List */}
+            {unpaidAmounts.length > 0 && (
+              <div className="bg-white rounded-lg p-4">
+                <h4 className="text-sm font-medium text-red-800 mb-3">Tracked Unpaid Amounts</h4>
+                <div className="space-y-2">
+                  {unpaidAmounts.map((unpaid, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm font-medium text-red-800">{unpaid.month}</span>
+                          <span className="text-sm font-bold text-red-900">Rs {unpaid.amount.toLocaleString()}</span>
+                        </div>
+                        {unpaid.notes && (
+                          <p className="text-xs text-red-600 mt-1">{unpaid.notes}</p>
+                        )}
+                        <p className="text-xs text-red-500 mt-1">
+                          Recorded: {format(new Date(unpaid.recordedDate), 'dd MMM yyyy, HH:mm')}
+                        </p>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleRemoveUnpaidAmount(index)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-100 border-red-300"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {unpaidAmounts.length === 0 && (
+              <div className="bg-white rounded-lg p-6 text-center">
+                <p className="text-sm text-red-600">No unpaid amounts tracked yet.</p>
+                <p className="text-xs text-red-500 mt-1">Add unpaid amounts from previous months to track them here.</p>
+              </div>
+            )}
           </div>
 
           {/* Due Ledger Section */}
