@@ -57,15 +57,6 @@ export function CustomerDetailModal({
         {/* Header */}
         <div className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-5 pr-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 flex-1 min-w-0">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => onEditCustomer(customer)}
-              className="bg-white text-emerald-700 hover:bg-emerald-50 gap-2 flex-shrink-0"
-            >
-              <Edit className="w-4 h-4" />
-              Edit
-            </Button>
             <div className="min-w-0 flex-1">
               <h2 className="text-2xl font-bold truncate">{customer.name}</h2>
               <p className="text-emerald-50 text-sm">Member since {format(customer.createdAt, 'MMM yyyy')}</p>
@@ -80,7 +71,18 @@ export function CustomerDetailModal({
         <div className="px-6 py-6 space-y-6 overflow-y-auto min-h-0 overflow-x-hidden">
           {/* Contact Information Section */}
           <section>
-            <h3 className="text-xl font-semibold text-foreground mb-4">Contact information</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="text-xl font-semibold text-foreground">Contact information</h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onEditCustomer(customer)}
+                className="gap-2"
+              >
+                <Edit className="w-4 h-4" />
+                Edit
+              </Button>
+            </div>
             <div className="bg-muted/30 p-4 rounded-lg">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
