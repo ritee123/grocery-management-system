@@ -107,8 +107,6 @@ export function EditCustomerModal({
     onOpenChange(false)
   }
 
-  if (!customer) return null
-
   const stats = calculateStats()
   const hasOutstanding = stats.unpaidAmount > 0
   const enteredAmount = useMemo(() => Number(paymentAmount), [paymentAmount])
@@ -184,6 +182,8 @@ export function EditCustomerModal({
     })
     cancelEditPayment()
   }
+
+  if (!customer) return null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
