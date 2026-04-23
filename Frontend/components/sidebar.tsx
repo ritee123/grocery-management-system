@@ -37,7 +37,6 @@ export function Sidebar({ mobileOpen = false, onCloseMobile }: SidebarProps) {
 
   const otherMenu = [
     { href: '/expenses', icon: BarChart3, label: 'Expenses' },
-    { href: '/reports', icon: BarChart3, label: 'Analytics' },
   ]
 
   const bottomMenu = [
