@@ -53,6 +53,12 @@ export function EditCustomerModal({
   const [editingAmount, setEditingAmount] = useState('')
   const [editingMethod, setEditingMethod] = useState<'cash' | 'online'>('cash')
   const [editingDate, setEditingDate] = useState('')
+  
+  // Previous month due payment state
+  const [previousDueAmount, setPreviousDueAmount] = useState('')
+  const [previousDueMethod, setPreviousDueMethod] = useState<'cash' | 'online'>('cash')
+  const [previousDueMonth, setPreviousDueMonth] = useState('')
+  const [previousDueNotes, setPreviousDueNotes] = useState('')
 
   useEffect(() => {
     if (customer) {
@@ -155,6 +161,31 @@ export function EditCustomerModal({
     if (!Number.isFinite(amount) || amount <= 0) return
     await onRecordPayment(customer.id, amount, paymentMethod)
     setPaymentAmount('')
+  }
+
+  const handlePreviousDuePayment = async () => {
+    if (!customer) return
+    const amount = Number(previousDueAmount)
+    if (!Number.isFinite(amount) || amount <= 0 || !previousDueMonth) {
+      alert('Please enter valid amount and select month')
+      return
+    }
+    
+    try {
+      // Create a payment record for previous month due
+      await onRecordPayment(customer.id, amount, previousDueMethod)
+      
+      // Show success message with details
+      alert(`Previous due payment recorded successfully!\n\nAmount: Rs ${amount}\nMonth: ${previousDueMonth}\nMethod: ${previousDueMethod}\n${previousDueNotes ? `Notes: ${previousDueNotes}` : ''}`)
+      
+      // Reset form
+      setPreviousDueAmount('')
+      setPreviousDueMethod('cash')
+      setPreviousDueMonth('')
+      setPreviousDueNotes('')
+    } catch (error) {
+      alert('Failed to record previous due payment. Please try again.')
+    }
   }
 
   const startEditPayment = (payment: (typeof sortedPaymentTransactions)[number]) => {
@@ -319,6 +350,89 @@ export function EditCustomerModal({
                 All dues are cleared for this customer.
               </p>
             )}
+          </div>
+
+          {/* Previous Month Due Payment Section */}
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg space-y-4">
+            <h3 className="font-semibold text-base text-amber-800">Previous Month Due Payment</h3>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-amber-700">Record payments for previous month outstanding amounts</p>
+              <div className="text-xs text-amber-600 bg-amber-100 px-2 py-1 rounded">
+                For old dues
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div>
+                <label className="block text-xs font-medium text-amber-700 mb-1">Amount (Rs)</label>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={previousDueAmount}
+                  onChange={(e) => setPreviousDueAmount(e.target.value)}
+                  placeholder="Enter due amount"
+                  className="bg-white border-amber-300"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-amber-700 mb-1">Month</label>
+                <Select value={previousDueMonth} onValueChange={setPreviousDueMonth}>
+                  <SelectTrigger className="bg-white border-amber-300">
+                    <SelectValue placeholder="Select month" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2025-03">March 2025</SelectItem>
+                    <SelectItem value="2025-02">February 2025</SelectItem>
+                    <SelectItem value="2025-01">January 2025</SelectItem>
+                    <SelectItem value="2024-12">December 2024</SelectItem>
+                    <SelectItem value="2024-11">November 2024</SelectItem>
+                    <SelectItem value="2024-10">October 2024</SelectItem>
+                    <SelectItem value="2024-09">September 2024</SelectItem>
+                    <SelectItem value="2024-08">August 2024</SelectItem>
+                    <SelectItem value="2024-07">July 2024</SelectItem>
+                    <SelectItem value="2024-06">June 2024</SelectItem>
+                    <SelectItem value="2024-05">May 2024</SelectItem>
+                    <SelectItem value="2024-04">April 2024</SelectItem>
+                    <SelectItem value="2024-03">March 2024</SelectItem>
+                    <SelectItem value="2024-02">February 2024</SelectItem>
+                    <SelectItem value="2024-01">January 2024</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-amber-700 mb-1">Payment Method</label>
+                <Select value={previousDueMethod} onValueChange={(value) => setPreviousDueMethod(value as 'cash' | 'online')}>
+                  <SelectTrigger className="bg-white border-amber-300">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Cash</SelectItem>
+                    <SelectItem value="online">Online</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-end">
+                <Button
+                  onClick={handlePreviousDuePayment}
+                  disabled={savingPayment || !previousDueAmount || !previousDueMonth}
+                  className="w-full bg-amber-600 hover:bg-amber-700"
+                >
+                  {savingPayment ? 'Recording...' : 'Record Previous Due'}
+                </Button>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-amber-700 mb-1">Notes (Optional)</label>
+              <Input
+                type="text"
+                value={previousDueNotes}
+                onChange={(e) => setPreviousDueNotes(e.target.value)}
+                placeholder="Add notes about this previous due payment..."
+                className="bg-white border-amber-300"
+              />
+            </div>
           </div>
 
           {/* Due Ledger Section */}
