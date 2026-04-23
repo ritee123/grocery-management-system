@@ -272,10 +272,10 @@ def my_sales(request):
     Customer portal: returns sales for the logged-in customer only.
     """
     user = request.user
-    if not hasattr(user, "customer_profile") or not user.customer_profile.customer_id:
-        return Response({"detail": "No customer profile linked to this user."}, status=status.HTTP_400_BAD_REQUEST)
+    if not hasattr(user, "customer") or not user.customer:
+        return Response({"detail": "No customer account linked to this user."}, status=status.HTTP_400_BAD_REQUEST)
     sales = (
-        Sale.objects.filter(customer_id=user.customer_profile.customer_id)
+        Sale.objects.filter(customer=user.customer)
         .prefetch_related("items", "payments")
         .order_by("-date")
     )
