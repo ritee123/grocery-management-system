@@ -39,6 +39,7 @@ function parseProduct(product: any): Product {
 
 function parseSaleItem(item: any): SaleItem {
   return {
+    id: item.id,
     productId: item.productId ?? item.product_id,
     productName: item.productName ?? item.product_name,
     quantity: item.quantity,
@@ -84,6 +85,7 @@ function parseExpense(expense: any): Expense {
 
 async function fetchJson(path: string) {
   const response = await fetch(`${API_BASE}${path}`, {
+    cache: 'no-store',
     headers: cleanHeaders(getAuthHeaders()),
   })
   if (!response.ok) {

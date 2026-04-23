@@ -62,20 +62,7 @@ export default function SalesPage() {
     fetchBootstrapData()
       .then((data) => {
         if (cancelled) return
-        
-        // Debug: Check what sales data we're getting
-        console.log('Bootstrap data received:', data)
-        console.log('Sales count:', data.sales.length)
-        
-        // Check sales with items
-        const salesWithItems = data.sales.filter((sale: Sale) => sale.items && sale.items.length > 0)
-        console.log('Sales with items:', salesWithItems.length)
-        
-        if (salesWithItems.length > 0) {
-          console.log('Sample sale with items:', salesWithItems[0])
-          console.log('Sample items:', salesWithItems[0].items)
-        }
-        
+
         setSales(data.sales)
         setCustomers(data.customers)
         setProducts(data.products)
@@ -224,107 +211,63 @@ export default function SalesPage() {
     setSaving(true)
     
     try {
-      console.log('Updating sale with data:', saleData)
-      console.log('Original sale:', editingSale)
-      
       // Create the complete updated sale payload
       const updatedSalePayload: any = {}
       
       // Update sale date if changed
       if (saleData.date) {
         updatedSalePayload.date = saleData.date
-        console.log('Will update date to:', saleData.date)
       }
 
       // Update payment status if changed
       if (saleData.paymentStatus !== undefined) {
         updatedSalePayload.payment_status = saleData.paymentStatus
-        console.log('Will update payment status to:', saleData.paymentStatus)
       }
 
       // Update paid amount if changed
       if (saleData.paidAmount !== undefined) {
         updatedSalePayload.paid_amount = saleData.paidAmount
-        console.log('Will update paid amount to:', saleData.paidAmount)
       }
 
-      // Update items if changed - this is the key fix
+      // Update items if changed
       if (saleData.items) {
-        console.log('Will update items with:', saleData.items)
-        
-        // Convert items to the format backend expects
-        const backendItems = saleData.items.map((item: any) => ({
-          product_name: item.productName,
-          unit_price: item.unitPrice,
-          quantity: item.quantity,
-          subtotal: item.subtotal
-        }))
-        
-        // Note: Since SaleItemSerializer has items as read_only, 
-        // we need to check if the backend supports updating items via sale endpoint
-        // For now, let's try to update individual items first
-        try {
-          console.log('Attempting individual item updates...')
-          await Promise.all(
-            saleData.items.map((item: any) =>
-              updateSaleItem(item.id, {
-                product_name: item.productName,
-                unit_price: item.unitPrice,
-                quantity: item.quantity,
-                subtotal: item.subtotal
-              })
-            )
-          )
-          console.log('Individual item updates successful')
-        } catch (itemError) {
-          console.warn('Individual item updates failed, trying alternative approach:', itemError)
-          
-          // Alternative: Try to update the sale with new total amount
-          const newTotalAmount = saleData.items.reduce((sum: number, item: any) => sum + item.subtotal, 0)
-          updatedSalePayload.total_amount = newTotalAmount
-          console.log('Will try updating sale total amount to:', newTotalAmount)
+        const itemsMissingId = saleData.items.some((item: any) => !item.id)
+        if (itemsMissingId) {
+          throw new Error('Cannot update sale items because one or more items are missing IDs. Please refresh and try again.')
         }
+
+        await Promise.all(
+          saleData.items.map((item: any) =>
+            updateSaleItem(item.id, {
+              product_name: item.productName,
+              unit_price: item.unitPrice,
+              quantity: item.quantity,
+              subtotal: item.subtotal
+            })
+          )
+        )
+
+        const newTotalAmount = saleData.items.reduce((sum: number, item: any) => sum + item.subtotal, 0)
+        updatedSalePayload.total_amount = newTotalAmount
       }
 
       // Update the sale with all changes
       if (Object.keys(updatedSalePayload).length > 0) {
-        console.log('Final sale payload:', updatedSalePayload)
         await updateSale(editingSale.id, updatedSalePayload)
-        console.log('Sale update successful')
       }
 
       // Force refresh the sales data
-      console.log('Refreshing sales data...')
       const updatedSales = await fetchSales()
-      console.log('Sales data refreshed:', updatedSales.length, 'sales')
       
       // Double-check the specific sale was updated
       const updatedSale = updatedSales.find((s: Sale) => s.id === editingSale.id)
       if (updatedSale) {
-        console.log('Updated sale found:', updatedSale)
-        console.log('Updated items:', updatedSale.items)
-        
         // Update the specific sale in the editingSale state to ensure re-editing shows correct data
         setEditingSale(updatedSale)
       }
       
       // Update the state
       setSales(updatedSales)
-      
-      // Force a second refresh after a short delay to ensure backend is updated
-      setTimeout(async () => {
-        console.log('Performing second refresh to ensure data is current...')
-        const finalSales = await fetchSales()
-        setSales(finalSales)
-        
-        // Also update the editingSale with the final data
-        const finalUpdatedSale = finalSales.find((s: Sale) => s.id === editingSale.id)
-        if (finalUpdatedSale) {
-          setEditingSale(finalUpdatedSale)
-        }
-        
-        console.log('Final refresh completed:', finalSales.length, 'sales')
-      }, 1000)
       
       // Close modal and reset state
       setIsEditModalOpen(false)
