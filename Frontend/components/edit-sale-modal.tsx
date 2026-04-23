@@ -24,7 +24,7 @@ export function EditSaleModal({
   onUpdateSale,
 }: EditSaleModalProps) {
   const [saleDate, setSaleDate] = useState<Date>(new Date())
-  const [items, setItems] = useState<Array<{ id: string; name: string; price: number; quantity: number }>>([])
+  const [items, setItems] = useState<Array<{ localId: string; id?: string; name: string; price: number; quantity: number }>>([])
   const [paymentStatus, setPaymentStatus] = useState<'paid' | 'unpaid' | 'partial'>('paid')
   const [paidAmount, setPaidAmount] = useState(0)
   const [saving, setSaving] = useState(false)
@@ -34,7 +34,8 @@ export function EditSaleModal({
       setSaleDate(new Date(sale.date))
       
       const mappedItems = sale.items.map(item => ({
-        id: item.id, // Use the actual sale item ID
+        localId: item.id,
+        id: item.id,
         name: item.productName,
         price: item.unitPrice,
         quantity: item.quantity
@@ -46,15 +47,27 @@ export function EditSaleModal({
   }, [sale])
 
   const updateItem = (
-    id: string,
+    localId: string,
     field: 'name' | 'price' | 'quantity',
     value: any
   ) => {
     setItems(
       items.map((item) =>
-        item.id === id ? { ...item, [field]: value } : item
+        item.localId === localId ? { ...item, [field]: value } : item
       )
     )
+  }
+
+  const addItem = () => {
+    const localId = `new-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    setItems((prev) => [
+      ...prev,
+      { localId, name: '', price: 0, quantity: 1 },
+    ])
+  }
+
+  const removeItem = (localId: string) => {
+    setItems((prev) => prev.filter((item) => item.localId !== localId))
   }
 
   const calculateTotal = () => {
@@ -146,24 +159,31 @@ export function EditSaleModal({
 
           {/* Items Section */}
           <div className="bg-muted/30 p-4 rounded-lg">
-            <h3 className="font-semibold text-base mb-4">Edit Items</h3>
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h3 className="font-semibold text-base">Edit Items</h3>
+              <Button type="button" variant="outline" size="sm" onClick={addItem} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Add Item
+              </Button>
+            </div>
             <div className="border rounded-lg overflow-hidden bg-white">
               {/* Header Row */}
-              <div className="hidden md:grid md:grid-cols-5 gap-3 bg-slate-100 px-4 py-3 font-semibold text-sm border-b">
+              <div className="hidden md:grid md:grid-cols-6 gap-3 bg-slate-100 px-4 py-3 font-semibold text-sm border-b">
                 <div className="md:col-span-2">Item Name</div>
                 <div className="md:col-span-1 text-right">Price (Rs)</div>
                 <div className="md:col-span-1 text-center">Quantity</div>
                 <div className="md:col-span-1 text-right">Total</div>
+                <div className="md:col-span-1 text-right">Action</div>
               </div>
 
               {/* Item Rows */}
               <div>
-                {items.map((item, idx) => {
+                {items.map((item) => {
                   const itemTotal = item.price * item.quantity
                   return (
                     <div
-                      key={item.id}
-                      className="grid grid-cols-1 md:grid-cols-5 gap-3 p-4 border-b hover:bg-slate-50 transition-colors items-end"
+                      key={item.localId}
+                      className="grid grid-cols-1 md:grid-cols-6 gap-3 p-4 border-b hover:bg-slate-50 transition-colors items-end"
                     >
                       {/* Item Name */}
                       <div className="md:col-span-2">
@@ -172,7 +192,7 @@ export function EditSaleModal({
                           type="text"
                           value={item.name}
                           onChange={(e) =>
-                            updateItem(item.id, 'name', e.target.value)
+                            updateItem(item.localId, 'name', e.target.value)
                           }
                           className="h-10 w-full mt-1 md:mt-0"
                           placeholder="Enter item name"
@@ -187,7 +207,7 @@ export function EditSaleModal({
                           placeholder="0.00"
                           value={item.price}
                           onChange={(e) =>
-                            updateItem(item.id, 'price', parseFloat(e.target.value) || 0)
+                            updateItem(item.localId, 'price', parseFloat(e.target.value) || 0)
                           }
                           className="h-10 text-right w-full mt-1 md:mt-0"
                         />
@@ -201,7 +221,7 @@ export function EditSaleModal({
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              updateItem(item.id, 'quantity', Math.max(1, item.quantity - 1))
+                              updateItem(item.localId, 'quantity', Math.max(1, item.quantity - 1))
                             }
                             className="h-10 w-8 p-0 text-lg"
                           >
@@ -212,14 +232,14 @@ export function EditSaleModal({
                             min="1"
                             value={item.quantity}
                             onChange={(e) =>
-                              updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)
+                              updateItem(item.localId, 'quantity', parseInt(e.target.value) || 1)
                             }
                             className="h-10 text-center border-0 flex-1 text-sm w-full"
                           />
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => updateItem(item.id, 'quantity', item.quantity + 1)}
+                            onClick={() => updateItem(item.localId, 'quantity', item.quantity + 1)}
                             className="h-10 w-8 p-0 text-lg"
                           >
                             +
@@ -231,6 +251,20 @@ export function EditSaleModal({
                       <div className="md:col-span-1 text-right font-semibold">
                         <label className="text-xs text-muted-foreground md:hidden">Total (Rs)</label>
                         <div className="mt-1 md:mt-0">Rs {itemTotal.toFixed(2)}</div>
+                      </div>
+
+                      {/* Action */}
+                      <div className="md:col-span-1 text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeItem(item.localId)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          aria-label="Remove item"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
                       </div>
                     </div>
                   )

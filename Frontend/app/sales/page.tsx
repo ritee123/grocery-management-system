@@ -231,13 +231,11 @@ export default function SalesPage() {
 
       // Update items if changed
       if (saleData.items) {
-        const itemsMissingId = saleData.items.some((item: any) => !item.id)
-        if (itemsMissingId) {
-          throw new Error('Cannot update sale items because one or more items are missing IDs. Please refresh and try again.')
-        }
+        const existingItems = saleData.items.filter((item: any) => item.id)
+        const newItems = saleData.items.filter((item: any) => !item.id)
 
         await Promise.all(
-          saleData.items.map((item: any) =>
+          existingItems.map((item: any) =>
             updateSaleItem(item.id, {
               product_name: item.productName,
               unit_price: item.unitPrice,
@@ -245,6 +243,21 @@ export default function SalesPage() {
               subtotal: item.subtotal
             })
           )
+        )
+
+        await Promise.all(
+          newItems
+            .filter((item: any) => item.productName?.trim())
+            .map((item: any) =>
+              createSaleItem({
+                sale: editingSale.id,
+                product: null,
+                product_name: item.productName,
+                quantity: Number(item.quantity) || 0,
+                unit_price: Number(item.unitPrice) || 0,
+                subtotal: Number(item.subtotal) || 0,
+              })
+            )
         )
 
         const newTotalAmount = saleData.items.reduce((sum: number, item: any) => sum + item.subtotal, 0)

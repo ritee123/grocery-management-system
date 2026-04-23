@@ -47,11 +47,13 @@ import { Calendar as CalendarComponent } from '@/components/ui/calendar'
 import {
   createCustomer,
   createPayment,
+  deletePayment,
   deleteCustomer,
   fetchBootstrapData,
   fetchCustomers,
   fetchSales,
   updateCustomer,
+  updatePayment,
   updateSale,
 } from '@/lib/api'
 import { Customer, Sale, Payment } from '@/lib/store'
@@ -341,6 +343,74 @@ export default function CustomersPage() {
     setQuickPaymentAmount('')
   }
 
+  const getPaymentStatusFromAmount = (paidAmount: number, totalAmount: number): Sale['paymentStatus'] => {
+    if (paidAmount <= 0) return 'unpaid'
+    if (paidAmount >= totalAmount) return 'paid'
+    return 'partial'
+  }
+
+  const handleUpdatePaymentRecord = async (
+    paymentId: string,
+    saleId: string,
+    payload: { amount: number; method: 'cash' | 'online'; date: string }
+  ) => {
+    const targetSale = sales.find((sale) => sale.id === saleId)
+    if (!targetSale) return
+
+    const existingPayments = targetSale.payments || []
+    const updatedPayments = existingPayments.map((payment) =>
+      payment.id === paymentId
+        ? {
+            ...payment,
+            amount: payload.amount,
+            method: payload.method,
+            date: new Date(payload.date),
+          }
+        : payment
+    )
+    const recalculatedPaidAmount = updatedPayments.reduce((sum, payment) => sum + payment.amount, 0)
+    const newStatus = getPaymentStatusFromAmount(recalculatedPaidAmount, targetSale.totalAmount)
+
+    setSavingPayment(true)
+    try {
+      await updatePayment(paymentId, payload)
+      await updateSale(saleId, {
+        paid_amount: recalculatedPaidAmount,
+        payment_status: newStatus,
+      })
+      setSales(await fetchSales())
+    } catch (error) {
+      console.error('Failed to update payment record:', error)
+      alert(error instanceof Error ? error.message : 'Failed to update payment record')
+    } finally {
+      setSavingPayment(false)
+    }
+  }
+
+  const handleDeletePaymentRecord = async (paymentId: string, saleId: string) => {
+    const targetSale = sales.find((sale) => sale.id === saleId)
+    if (!targetSale) return
+
+    const remainingPayments = (targetSale.payments || []).filter((payment) => payment.id !== paymentId)
+    const recalculatedPaidAmount = remainingPayments.reduce((sum, payment) => sum + payment.amount, 0)
+    const newStatus = getPaymentStatusFromAmount(recalculatedPaidAmount, targetSale.totalAmount)
+
+    setSavingPayment(true)
+    try {
+      await deletePayment(paymentId)
+      await updateSale(saleId, {
+        paid_amount: recalculatedPaidAmount,
+        payment_status: newStatus,
+      })
+      setSales(await fetchSales())
+    } catch (error) {
+      console.error('Failed to delete payment record:', error)
+      alert(error instanceof Error ? error.message : 'Failed to delete payment record')
+    } finally {
+      setSavingPayment(false)
+    }
+  }
+
   return (
     <>
       <CustomerDetailModal
@@ -350,6 +420,8 @@ export default function CustomersPage() {
         onClose={() => setIsDetailModalOpen(false)}
         savingPayment={savingPayment}
         onRecordPayment={handleCustomerPayment}
+        onUpdatePaymentRecord={handleUpdatePaymentRecord}
+        onDeletePaymentRecord={handleDeletePaymentRecord}
         onEditCustomer={(customer) => {
           setIsDetailModalOpen(false)
           handleEdit(customer)

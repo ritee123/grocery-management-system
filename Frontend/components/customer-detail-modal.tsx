@@ -19,6 +19,7 @@ import {
   MapPin,
   X,
   Edit,
+  Trash2,
   ShoppingBag,
   Calendar,
   DollarSign,
@@ -36,6 +37,12 @@ interface CustomerDetailModalProps {
   onClose: () => void
   onEditCustomer: (customer: Customer) => void
   onRecordPayment: (customerId: string, amount: number, method: 'cash' | 'online') => Promise<void>
+  onUpdatePaymentRecord: (
+    paymentId: string,
+    saleId: string,
+    payload: { amount: number; method: 'cash' | 'online'; date: string }
+  ) => Promise<void>
+  onDeletePaymentRecord: (paymentId: string, saleId: string) => Promise<void>
   savingPayment?: boolean
 }
 
@@ -46,12 +53,18 @@ export function CustomerDetailModal({
   onClose,
   onEditCustomer,
   onRecordPayment,
+  onUpdatePaymentRecord,
+  onDeletePaymentRecord,
   savingPayment = false,
 }: CustomerDetailModalProps) {
   if (!customer) return null
 
   const [paymentAmount, setPaymentAmount] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'online'>('cash')
+  const [editingPaymentId, setEditingPaymentId] = useState<string | null>(null)
+  const [editingAmount, setEditingAmount] = useState('')
+  const [editingMethod, setEditingMethod] = useState<'cash' | 'online'>('cash')
+  const [editingDate, setEditingDate] = useState('')
   const customerSales = sales.filter((sale) => sale.customerId === customer.id)
   const totalSpent = customerSales.reduce((sum, sale) => sum + sale.totalAmount, 0)
   const totalPaid = customerSales.reduce((sum, sale) => sum + (sale.paidAmount || 0), 0)
@@ -59,12 +72,76 @@ export function CustomerDetailModal({
   const totalOrders = customerSales.length
   const hasOutstanding = totalUnpaid > 0
   const enteredAmount = useMemo(() => Number(paymentAmount), [paymentAmount])
+  const paymentTransactions = useMemo(
+    () =>
+      customerSales.flatMap((sale) =>
+        (sale.payments || []).map((payment) => ({
+          ...payment,
+          saleId: sale.id,
+        }))
+      ),
+    [customerSales]
+  )
+  const sortedPaymentTransactions = useMemo(
+    () => [...paymentTransactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+    [paymentTransactions]
+  )
+  const monthlyDueSummary = useMemo(() => {
+    const monthMap = new Map<string, { monthKey: string; monthLabel: string; monthSales: number; monthPaid: number }>()
+
+    customerSales.forEach((sale) => {
+      const saleDate = new Date(sale.date)
+      const monthKey = `${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, '0')}`
+      const monthLabel = format(saleDate, 'MMM yyyy')
+      if (!monthMap.has(monthKey)) {
+        monthMap.set(monthKey, { monthKey, monthLabel, monthSales: 0, monthPaid: 0 })
+      }
+      const bucket = monthMap.get(monthKey)!
+      bucket.monthSales += sale.totalAmount
+      bucket.monthPaid += (sale.payments || []).reduce((sum, payment) => sum + payment.amount, 0)
+    })
+
+    const monthlyRows = Array.from(monthMap.values()).sort((a, b) => a.monthKey.localeCompare(b.monthKey))
+    let carryForwardDue = 0
+    return monthlyRows.map((row) => {
+      const openingDue = carryForwardDue
+      const closingDue = Math.max(0, openingDue + row.monthSales - row.monthPaid)
+      carryForwardDue = closingDue
+      return { ...row, openingDue, closingDue }
+    })
+  }, [customerSales])
 
   const handleSubmitPayment = async () => {
     const amount = Number(paymentAmount)
     if (!Number.isFinite(amount) || amount <= 0) return
     await onRecordPayment(customer.id, amount, paymentMethod)
     setPaymentAmount('')
+  }
+
+  const startEditPayment = (payment: (typeof sortedPaymentTransactions)[number]) => {
+    setEditingPaymentId(payment.id)
+    setEditingAmount(String(payment.amount))
+    setEditingMethod(payment.method)
+    setEditingDate(new Date(payment.date).toISOString().slice(0, 10))
+  }
+
+  const cancelEditPayment = () => {
+    setEditingPaymentId(null)
+    setEditingAmount('')
+    setEditingMethod('cash')
+    setEditingDate('')
+  }
+
+  const savePaymentEdit = async (saleId: string) => {
+    if (!editingPaymentId) return
+    const amount = Number(editingAmount)
+    if (!Number.isFinite(amount) || amount <= 0 || !editingDate) return
+    await onUpdatePaymentRecord(editingPaymentId, saleId, {
+      amount,
+      method: editingMethod,
+      date: new Date(editingDate).toISOString(),
+    })
+    cancelEditPayment()
   }
 
   return (
@@ -274,6 +351,131 @@ export function CustomerDetailModal({
                 <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
                   All dues are cleared for this customer.
                 </p>
+              )}
+            </div>
+          </section>
+
+          {/* Due Ledger Section */}
+          <section>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Due Ledger by Month</h3>
+            <div className="bg-muted/30 p-4 rounded-lg">
+              {monthlyDueSummary.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left">
+                        <th className="py-2 pr-3">Month</th>
+                        <th className="py-2 pr-3 text-right">Opening Due</th>
+                        <th className="py-2 pr-3 text-right">New Sales</th>
+                        <th className="py-2 pr-3 text-right">Payments</th>
+                        <th className="py-2 text-right">Closing Due</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {monthlyDueSummary.map((row) => (
+                        <tr key={row.monthKey} className="border-b last:border-b-0">
+                          <td className="py-2 pr-3 font-medium">{row.monthLabel}</td>
+                          <td className="py-2 pr-3 text-right">Rs {row.openingDue.toLocaleString()}</td>
+                          <td className="py-2 pr-3 text-right">Rs {row.monthSales.toLocaleString()}</td>
+                          <td className="py-2 pr-3 text-right">Rs {row.monthPaid.toLocaleString()}</td>
+                          <td className="py-2 text-right font-semibold text-orange-600">Rs {row.closingDue.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No monthly due records yet.</p>
+              )}
+            </div>
+          </section>
+
+          {/* Payment Transactions Section */}
+          <section>
+            <h3 className="text-lg font-semibold text-foreground mb-3">Payment Transactions</h3>
+            <div className="bg-muted/30 p-4 rounded-lg space-y-3">
+              {sortedPaymentTransactions.length > 0 ? (
+                sortedPaymentTransactions.map((payment) => {
+                  const isEditing = editingPaymentId === payment.id
+                  return (
+                    <div key={payment.id} className="border rounded-md bg-white p-3">
+                      <div className="grid grid-cols-1 md:grid-cols-6 gap-2 items-end">
+                        <div className="md:col-span-2">
+                          <p className="text-xs text-muted-foreground">Sale</p>
+                          <p className="text-sm font-medium">#{payment.saleId}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Amount</p>
+                          {isEditing ? (
+                            <Input
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              value={editingAmount}
+                              onChange={(e) => setEditingAmount(e.target.value)}
+                              className="h-9"
+                            />
+                          ) : (
+                            <p className="text-sm font-semibold text-green-700">Rs {payment.amount.toLocaleString()}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Method</p>
+                          {isEditing ? (
+                            <Select value={editingMethod} onValueChange={(value) => setEditingMethod(value as 'cash' | 'online')}>
+                              <SelectTrigger className="h-9">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="cash">Cash</SelectItem>
+                                <SelectItem value="online">Online</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <p className="text-sm">{payment.method}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Date</p>
+                          {isEditing ? (
+                            <Input type="date" value={editingDate} onChange={(e) => setEditingDate(e.target.value)} className="h-9" />
+                          ) : (
+                            <p className="text-sm">{format(new Date(payment.date), 'dd MMM yyyy')}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          {isEditing ? (
+                            <>
+                              <Button size="sm" onClick={() => savePaymentEdit(payment.saleId)} disabled={savingPayment}>
+                                Save
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={cancelEditPayment}>
+                                Cancel
+                              </Button>
+                            </>
+                          ) : (
+                            <>
+                              <Button size="sm" variant="outline" onClick={() => startEditPayment(payment)}>
+                                Edit
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-red-600 hover:text-red-700"
+                                onClick={() => onDeletePaymentRecord(payment.id, payment.saleId)}
+                                disabled={savingPayment}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })
+              ) : (
+                <p className="text-sm text-muted-foreground">No payment transactions yet.</p>
               )}
             </div>
           </section>

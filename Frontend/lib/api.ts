@@ -314,6 +314,21 @@ export async function createPayment(payload: {
   return await postJson('/api/payments/', payload)
 }
 
+export async function updatePayment(
+  id: string,
+  payload: Partial<{
+    amount: number
+    method: 'cash' | 'online'
+    date: string
+  }>
+) {
+  return await patchJson(`/api/payments/${id}/`, payload)
+}
+
+export async function deletePayment(id: string) {
+  await deleteJson(`/api/payments/${id}/`)
+}
+
 export async function updateSale(
   id: string,
   payload: Partial<{
