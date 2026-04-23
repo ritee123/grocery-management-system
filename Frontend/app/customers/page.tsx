@@ -268,8 +268,11 @@ export default function CustomersPage() {
     setPurchaseMethodFilter('all')
   }
 
-  const handleQuickPayment = async (customerId: string) => {
-    const amount = parseFloat(quickPaymentAmount)
+  const handleCustomerPayment = async (
+    customerId: string,
+    amount: number,
+    method: 'cash' | 'online'
+  ) => {
     if (isNaN(amount) || amount <= 0) return
     
     const customerUnpaidSales = sales
@@ -304,7 +307,7 @@ export default function CustomersPage() {
           await createPayment({
             sale: sale.id,
             amount: allocation.amount,
-            method: quickPaymentMethod,
+            method,
             date: new Date().toISOString(),
           })
 
@@ -319,18 +322,23 @@ export default function CustomersPage() {
       setSales(updatedSales)
       setLastPaymentDeposit({
         amount,
-        method: quickPaymentMethod,
+        method,
         customerId,
         allocations: paymentAllocations,
         timestamp: new Date(),
       })
-      setQuickPaymentAmount('')
     } catch (error) {
       console.error('Failed to record payment:', error)
       alert(error instanceof Error ? error.message : 'Failed to record payment')
     } finally {
       setSavingPayment(false)
     }
+  }
+
+  const handleQuickPayment = async (customerId: string) => {
+    const amount = parseFloat(quickPaymentAmount)
+    await handleCustomerPayment(customerId, amount, quickPaymentMethod)
+    setQuickPaymentAmount('')
   }
 
   return (
@@ -340,6 +348,8 @@ export default function CustomersPage() {
         sales={sales}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
+        savingPayment={savingPayment}
+        onRecordPayment={handleCustomerPayment}
         onEditCustomer={(customer) => {
           setIsDetailModalOpen(false)
           handleEdit(customer)
