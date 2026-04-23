@@ -246,6 +246,8 @@ export async function updateCustomer(
     phone: string
     email: string
     address: string
+    username?: string
+    password?: string
   }>
 ) {
   return await patchJson(`/api/customers/${id}/`, payload)

@@ -9,6 +9,8 @@ class Customer(models.Model):
     phone = models.CharField(max_length=20, blank=True, default='')
     email = models.CharField(max_length=255, blank=True, default='')
     address = models.TextField(blank=True, default='')
+    username = models.CharField(max_length=150, blank=True, null=True, unique=True)
+    user = models.OneToOneField('auth.User', on_delete=models.SET_NULL, null=True, blank=True, related_name='customer')
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

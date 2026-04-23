@@ -20,6 +20,94 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
 
+    def create(self, request, *args, **kwargs):
+        data = request.data.copy()
+        username = data.get('username')
+        password = data.get('password')
+        
+        # Create Django User if username and password are provided
+        if username and password:
+            # Check if username already exists
+            if User.objects.filter(username=username).exists():
+                return Response(
+                    {"detail": "Username already exists"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Create Django User
+            user = User.objects.create_user(
+                username=username,
+                password=password,
+                email=data.get('email', ''),
+                is_staff=False
+            )
+            
+            # Link user to customer
+            data['user'] = user.id
+        
+        # Create customer
+        serializer = self.get_serializer(data=data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        customer = self.get_object()
+        data = request.data.copy()
+        username = data.get('username')
+        password = data.get('password')
+        
+        # Handle login credentials update
+        if username is not None:
+            if username == '':
+                # Remove login credentials
+                if customer.user:
+                    customer.user.delete()
+                    customer.user = None
+                    customer.username = None
+            else:
+                # Update or create login credentials
+                if customer.user:
+                    # Update existing user
+                    if customer.user.username != username:
+                        if User.objects.filter(username=username).exclude(id=customer.user.id).exists():
+                            return Response(
+                                {"detail": "Username already exists"},
+                                status=status.HTTP_400_BAD_REQUEST
+                            )
+                        customer.user.username = username
+                    
+                    if password:
+                        customer.user.set_password(password)
+                    
+                    customer.user.save()
+                    customer.username = username
+                else:
+                    # Create new user
+                    if User.objects.filter(username=username).exists():
+                        return Response(
+                            {"detail": "Username already exists"},
+                            status=status.HTTP_400_BAD_REQUEST
+                        )
+                    
+                    user = User.objects.create_user(
+                        username=username,
+                        password=password or 'defaultpassword123',  # Set a default if no password provided
+                        email=data.get('email', ''),
+                        is_staff=False
+                    )
+                    
+                    customer.user = user
+                    customer.username = username
+        
+        # Update other customer fields
+        serializer = self.get_serializer(customer, data=data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        
+        return Response(serializer.data)
+
     def destroy(self, request, *args, **kwargs):
         customer = self.get_object()
         force_delete = request.query_params.get("force", "false").lower() == "true"

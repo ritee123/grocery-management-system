@@ -2,9 +2,12 @@ from rest_framework import serializers
 from .models import Customer, Product, Sale, SaleItem, Payment, Expense
 
 class CustomerSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    
     class Meta:
         model = Customer
         fields = '__all__'
+        read_only_fields = ('user',)  # Make user field read-only as it's managed in the viewset
 
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:

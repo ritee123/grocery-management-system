@@ -5,6 +5,7 @@ export interface Customer {
   phone: string
   email: string
   address: string
+  username?: string
   createdAt: Date
 }
 

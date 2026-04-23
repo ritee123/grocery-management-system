@@ -70,6 +70,11 @@ export function EditCustomerModal({
   const [newUnpaidMonth, setNewUnpaidMonth] = useState('')
   const [newUnpaidAmount, setNewUnpaidAmount] = useState('')
   const [newUnpaidNotes, setNewUnpaidNotes] = useState('')
+  
+  // Login credentials state
+  const [loginUsername, setLoginUsername] = useState('')
+  const [loginPassword, setLoginPassword] = useState('')
+  const [hasLoginCredentials, setHasLoginCredentials] = useState(false)
 
   useEffect(() => {
     if (customer) {
@@ -77,6 +82,11 @@ export function EditCustomerModal({
       setPhone(customer.phone)
       setEmail(customer.email)
       setAddress(customer.address)
+      
+      // Check if customer has login credentials
+      setHasLoginCredentials(!!customer.username)
+      setLoginUsername(customer.username || '')
+      setLoginPassword('') // Don't pre-fill password for security
     }
   }, [customer])
 
@@ -233,6 +243,56 @@ export function EditCustomerModal({
     return unpaidAmounts.reduce((sum, unpaid) => sum + unpaid.amount, 0)
   }
 
+  const handleUpdateLoginCredentials = async () => {
+    if (!customer) return
+    
+    if (!loginUsername || !loginPassword) {
+      alert('Please enter both username and password')
+      return
+    }
+    
+    try {
+      await onUpdateCustomer({
+        name,
+        phone,
+        email,
+        address,
+        username: loginUsername,
+        password: loginPassword
+      })
+      
+      setHasLoginCredentials(true)
+      alert('Login credentials updated successfully!')
+    } catch (error) {
+      alert('Failed to update login credentials: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    }
+  }
+
+  const handleRemoveLoginCredentials = async () => {
+    if (!customer) return
+    
+    if (!confirm('Are you sure you want to remove login credentials for this customer? They will no longer be able to access the portal.')) {
+      return
+    }
+    
+    try {
+      await onUpdateCustomer({
+        name,
+        phone,
+        email,
+        address,
+        username: null
+      })
+      
+      setHasLoginCredentials(false)
+      setLoginUsername('')
+      setLoginPassword('')
+      alert('Login credentials removed successfully!')
+    } catch (error) {
+      alert('Failed to remove login credentials: ' + (error instanceof Error ? error.message : 'Unknown error'))
+    }
+  }
+
   const startEditPayment = (payment: (typeof sortedPaymentTransactions)[number]) => {
     setEditingPaymentId(payment.id)
     setEditingAmount(String(payment.amount))
@@ -328,6 +388,107 @@ export function EditCustomerModal({
                 />
               </div>
             </div>
+          </div>
+
+          {/* Login Credentials Section */}
+          <div className="bg-purple-50 border border-purple-200 p-4 rounded-lg space-y-4">
+            <h3 className="font-semibold text-base text-purple-800">Customer Login Credentials</h3>
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-purple-700">Manage customer portal access</p>
+              <div className={`text-xs px-2 py-1 rounded ${
+                hasLoginCredentials 
+                  ? 'bg-green-100 text-green-600' 
+                  : 'bg-gray-100 text-gray-600'
+              }`}>
+                {hasLoginCredentials ? 'Portal Enabled' : 'No Portal Access'}
+              </div>
+            </div>
+
+            {hasLoginCredentials ? (
+              <div className="bg-white rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-purple-800">Current Username:</p>
+                    <p className="text-lg font-bold text-purple-900">{loginUsername}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRemoveLoginCredentials}
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300"
+                  >
+                    Remove Access
+                  </Button>
+                </div>
+                <div className="border-t pt-3">
+                  <p className="text-xs text-purple-600 mb-2">Update credentials:</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-xs font-medium text-purple-700 mb-1">New Username</label>
+                      <Input
+                        value={loginUsername}
+                        onChange={(e) => setLoginUsername(e.target.value)}
+                        placeholder="Enter new username"
+                        className="bg-white border-purple-300"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-purple-700 mb-1">New Password</label>
+                      <Input
+                        type="password"
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="Enter new password"
+                        className="bg-white border-purple-300"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end mt-3">
+                    <Button
+                      onClick={handleUpdateLoginCredentials}
+                      disabled={!loginUsername || !loginPassword}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      Update Credentials
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-white rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-3">This customer does not have portal access yet.</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 mb-1">Username</label>
+                    <Input
+                      value={loginUsername}
+                      onChange={(e) => setLoginUsername(e.target.value)}
+                      placeholder="Enter username for login"
+                      className="bg-white border-purple-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-purple-700 mb-1">Password</label>
+                    <Input
+                      type="password"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      placeholder="Enter password for login"
+                      className="bg-white border-purple-300"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end mt-3">
+                  <Button
+                    onClick={handleUpdateLoginCredentials}
+                    disabled={!loginUsername || !loginPassword}
+                    className="bg-purple-600 hover:bg-purple-700"
+                  >
+                    Enable Portal Access
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Customer Statistics */}
