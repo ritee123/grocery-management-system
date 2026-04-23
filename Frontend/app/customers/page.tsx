@@ -340,6 +340,10 @@ export default function CustomersPage() {
         sales={sales}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
+        onEditCustomer={(customer) => {
+          setIsDetailModalOpen(false)
+          handleEdit(customer)
+        }}
       />
 
       <EditCustomerModal

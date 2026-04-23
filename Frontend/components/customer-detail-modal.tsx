@@ -10,6 +10,7 @@ import {
   Mail,
   MapPin,
   X,
+  Edit,
   ShoppingBag,
   Calendar,
   DollarSign,
@@ -24,6 +25,7 @@ interface CustomerDetailModalProps {
   sales: Sale[]
   isOpen: boolean
   onClose: () => void
+  onEditCustomer: (customer: Customer) => void
 }
 
 export function CustomerDetailModal({
@@ -31,6 +33,7 @@ export function CustomerDetailModal({
   sales,
   isOpen,
   onClose,
+  onEditCustomer,
 }: CustomerDetailModalProps) {
   if (!customer) return null
 
@@ -54,9 +57,15 @@ export function CustomerDetailModal({
         {/* Header */}
         <div className="bg-gradient-to-r from-emerald-500 to-green-600 text-white px-6 py-5 pr-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-4 flex-1 min-w-0">
-            <div className="w-16 h-16 rounded-xl bg-white bg-opacity-20 backdrop-blur-sm flex items-center justify-center text-white text-2xl font-bold border border-white border-opacity-30 flex-shrink-0">
-              {customer.name.charAt(0)}
-            </div>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => onEditCustomer(customer)}
+              className="bg-white text-emerald-700 hover:bg-emerald-50 gap-2 flex-shrink-0"
+            >
+              <Edit className="w-4 h-4" />
+              Edit
+            </Button>
             <div className="min-w-0 flex-1">
               <h2 className="text-2xl font-bold truncate">{customer.name}</h2>
               <p className="text-emerald-50 text-sm">Member since {format(customer.createdAt, 'MMM yyyy')}</p>
