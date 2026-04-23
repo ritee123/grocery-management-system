@@ -233,6 +233,8 @@ export async function createCustomer(payload: {
   phone: string
   email: string
   address: string
+  username?: string
+  password?: string
 }) {
   return await postJson('/api/customers/', payload)
 }

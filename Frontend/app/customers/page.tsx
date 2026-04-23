@@ -66,6 +66,8 @@ interface FormData {
   phone: string
   email: string
   address: string
+  username: string
+  password: string
 }
 
 export default function CustomersPage() {
@@ -120,6 +122,8 @@ export default function CustomersPage() {
     phone: '',
     email: '',
     address: '',
+    username: '',
+    password: ''
   })
 
   const filteredCustomers = customers.filter(
@@ -196,7 +200,7 @@ export default function CustomersPage() {
 
         const updatedCustomers = await fetchCustomers()
         setCustomers(updatedCustomers)
-        setFormData({ name: '', phone: '', email: '', address: '' })
+        setFormData({ name: '', phone: '', email: '', address: '', username: '', password: '' })
         setIsAddingCustomer(false)
       } catch (error) {
         console.error('Failed to save customer:', error)
@@ -242,7 +246,7 @@ export default function CustomersPage() {
   const handleCancel = () => {
     setIsAddingCustomer(false)
     setEditingId(null)
-    setFormData({ name: '', phone: '', email: '', address: '' })
+    setFormData({ name: '', phone: '', email: '', address: '', username: '', password: '' })
   }
 
   const toggleCustomerExpand = (customerId: string) => {
@@ -552,6 +556,35 @@ export default function CustomersPage() {
                 />
               </div>
             </div>
+
+            {/* Login Credentials Section */}
+            <div className="border-t pt-4 mt-4">
+              <h4 className="text-sm font-semibold text-gray-900 mb-3">Customer Login Credentials</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium">Username <span className="text-red-500">*</span></label>
+                  <Input
+                    value={formData.username}
+                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                    placeholder="Enter username for login"
+                    className="mt-2 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Password <span className="text-red-500">*</span></label>
+                  <Input
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    placeholder="Enter password for login"
+                    type="password"
+                    className="mt-2 bg-white"
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                These credentials will be used by the customer to access their portal and view purchase history.
+              </p>
+            </div>
           </div>
 
           <DialogFooter>
@@ -561,7 +594,7 @@ export default function CustomersPage() {
             <Button
               type="button"
               onClick={handleAddCustomer}
-              disabled={savingCustomer || !formData.name}
+              disabled={savingCustomer || !formData.name || !formData.username || !formData.password}
             >
               {savingCustomer ? 'Saving...' : editingId ? 'Update Customer' : 'Add Customer'}
             </Button>
