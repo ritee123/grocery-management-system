@@ -181,6 +181,45 @@ export async function fetchMySales() {
   return (data || []).map(parseSale)
 }
 
+export async function fetchMyUnpaid() {
+  const data = await fetchJson('/api/my/unpaid/')
+  return data || {
+    sales_unpaid: 0,
+    tracked_unpaid: 0,
+    total_unpaid: 0,
+    sales_total: 0,
+    sales_paid: 0,
+    unpaid_amounts: []
+  }
+}
+
+export async function fetchUnpaidAmounts(customerId?: string) {
+  const url = customerId ? `/api/unpaid-amounts/?customer_id=${customerId}` : '/api/unpaid-amounts/'
+  return await fetchJson(url)
+}
+
+export async function createUnpaidAmount(payload: {
+  customer: string
+  month: string
+  amount: number
+  notes?: string
+}) {
+  return await postJson('/api/unpaid-amounts/', payload)
+}
+
+export async function updateUnpaidAmount(id: string, payload: {
+  customer?: string
+  month?: string
+  amount?: number
+  notes?: string
+}) {
+  return await patchJson(`/api/unpaid-amounts/${id}/`, payload)
+}
+
+export async function deleteUnpaidAmount(id: string) {
+  return await deleteJson(`/api/unpaid-amounts/${id}/`)
+}
+
 export async function fetchCustomers() {
   const data = await fetchJson('/api/customers/')
   return (data || []).map(parseCustomer)

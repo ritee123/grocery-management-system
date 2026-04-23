@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
-import { fetchMySales, authLogout } from '@/lib/api'
+import { fetchMySales, fetchMyUnpaid, authLogout } from '@/lib/api'
 import { clearAuthSession, getAuthRole, isAuthenticated, getAuthUser } from '@/lib/auth'
 import { Sale } from '@/lib/store'
 import { format } from 'date-fns'
@@ -18,6 +18,19 @@ export default function CustomerPortalPage() {
   const router = useRouter()
   const [sales, setSales] = useState<Sale[]>([])
   const [loading, setLoading] = useState(true)
+  const [unpaidData, setUnpaidData] = useState<{
+    sales_unpaid: number
+    tracked_unpaid: number
+    total_unpaid: number
+    sales_total: number
+    sales_paid: number
+  }>({
+    sales_unpaid: 0,
+    tracked_unpaid: 0,
+    total_unpaid: 0,
+    sales_total: 0,
+    sales_paid: 0
+  })
   const [inquiryLoading, setInquiryLoading] = useState(false)
   const [inquiryForm, setInquiryForm] = useState({
     subject: '',
@@ -37,16 +50,30 @@ export default function CustomerPortalPage() {
       router.push('/')
       return
     }
-    fetchMySales()
-      .then(setSales)
-      .finally(() => setLoading(false))
+    
+    // Fetch both sales and unpaid data
+    Promise.all([
+      fetchMySales().then(setSales),
+      fetchMyUnpaid().then(setUnpaidData)
+    ]).finally(() => setLoading(false))
   }, [router])
 
   const totals = useMemo(() => {
-    const total = sales.reduce((s, x) => s + (x.totalAmount || 0), 0)
-    const paid = sales.reduce((s, x) => s + (x.paidAmount || 0), 0)
-    return { total, paid, due: total - paid }
-  }, [sales])
+    const salesTotal = sales.reduce((s, x) => s + (x.totalAmount || 0), 0)
+    const salesPaid = sales.reduce((s, x) => s + (x.paidAmount || 0), 0)
+    const salesDue = salesTotal - salesPaid
+    
+    return {
+      total: salesTotal + (unpaidData.tracked_unpaid || 0),
+      paid: salesPaid,
+      due: salesDue + (unpaidData.sales_unpaid || 0),
+      sales_total: salesTotal,
+      sales_paid: salesPaid,
+      sales_unpaid: salesDue,
+      tracked_unpaid: unpaidData.tracked_unpaid || 0,
+      total_unpaid: unpaidData.total_unpaid || 0
+    }
+  }, [sales, unpaidData])
 
   const recentSales = useMemo(() => {
     return sales.slice(0, 5)
@@ -199,7 +226,7 @@ export default function CustomerPortalPage() {
               </Card>
 
               {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="border-0 shadow-sm">
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
@@ -232,8 +259,8 @@ export default function CustomerPortalPage() {
                   <CardContent className="p-6">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-600">Due Amount</p>
-                        <p className="text-2xl font-bold text-orange-600">Rs {totals.due.toLocaleString()}</p>
+                        <p className="text-sm font-medium text-gray-600">Sales Unpaid</p>
+                        <p className="text-2xl font-bold text-orange-600">Rs {totals.sales_unpaid.toLocaleString()}</p>
                       </div>
                       <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
                         <AlertCircle className="w-6 h-6 text-orange-600" />
@@ -242,6 +269,33 @@ export default function CustomerPortalPage() {
                   </CardContent>
                 </Card>
 
+                <Card className="border-0 shadow-sm">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Previous Dues</p>
+                        <p className="text-2xl font-bold text-red-600">Rs {totals.tracked_unpaid.toLocaleString()}</p>
+                      </div>
+                      <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                        <AlertCircle className="w-6 h-6 text-red-600" />
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+              </div>
+
+              {/* Total Due Summary */}
+              <div className="bg-gradient-to-r from-red-500 to-red-600 text-white p-4 rounded-lg">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold mb-1">Total Outstanding Amount</h3>
+                    <p className="text-red-100 text-sm">This includes all unpaid amounts from sales and previous dues</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold">Rs {totals.total_unpaid.toLocaleString()}</p>
+                  </div>
+                </div>
               </div>
 
               {/* Recent Activity */}

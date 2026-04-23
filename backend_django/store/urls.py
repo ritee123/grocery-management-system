@@ -9,6 +9,7 @@ router.register(r'sales', views.SaleViewSet)
 router.register(r'sale-items', views.SaleItemViewSet)
 router.register(r'payments', views.PaymentViewSet)
 router.register(r'expenses', views.ExpenseViewSet)
+router.register(r'unpaid-amounts', views.UnpaidAmountViewSet)
 
 urlpatterns = [
     path('', include(router.urls)),
@@ -18,4 +19,5 @@ urlpatterns = [
     path('auth/logout/', views.logout, name='logout'),
     path('auth/me/', views.me, name='me'),
     path('my/sales/', views.my_sales, name='my-sales'),
+    path('my/unpaid/', views.my_unpaid, name='my-unpaid'),
 ]

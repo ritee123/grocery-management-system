@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Edit, Phone, Mail, MapPin, Calendar, DollarSign, Trash2 } from 'lucide-react'
 import { Customer, Sale } from '@/lib/store'
 import { format } from 'date-fns'
+import { fetchUnpaidAmounts, createUnpaidAmount, deleteUnpaidAmount } from '@/lib/api'
 import {
   Select,
   SelectContent,
@@ -62,6 +63,7 @@ export function EditCustomerModal({
   
   // Unpaid amounts tracking state
   const [unpaidAmounts, setUnpaidAmounts] = useState<Array<{
+    id: string
     month: string
     amount: number
     notes: string
@@ -70,6 +72,7 @@ export function EditCustomerModal({
   const [newUnpaidMonth, setNewUnpaidMonth] = useState('')
   const [newUnpaidAmount, setNewUnpaidAmount] = useState('')
   const [newUnpaidNotes, setNewUnpaidNotes] = useState('')
+  const [loadingUnpaid, setLoadingUnpaid] = useState(false)
   
   // Login credentials state
   const [loginUsername, setLoginUsername] = useState('')
@@ -87,6 +90,22 @@ export function EditCustomerModal({
       setHasLoginCredentials(!!customer.username)
       setLoginUsername(customer.username || '')
       setLoginPassword('') // Don't pre-fill password for security
+      
+      // Fetch unpaid amounts from backend
+      fetchUnpaidAmounts(customer.id)
+        .then((data) => {
+          const formattedData = data.map((item: any) => ({
+            id: item.id,
+            month: item.month,
+            amount: Number(item.amount),
+            notes: item.notes || '',
+            recordedDate: item.recorded_date
+          }))
+          setUnpaidAmounts(formattedData)
+        })
+        .catch((error) => {
+          console.error('Failed to fetch unpaid amounts:', error)
+        })
     }
   }, [customer])
 
@@ -209,34 +228,72 @@ export function EditCustomerModal({
     }
   }
 
-  const handleAddUnpaidAmount = () => {
+  const handleAddUnpaidAmount = async () => {
+    if (!customer) return
+    
     const amount = Number(newUnpaidAmount)
     if (!Number.isFinite(amount) || amount <= 0 || !newUnpaidMonth) {
       alert('Please enter valid amount and select month')
       return
     }
     
-    const newUnpaid = {
-      month: newUnpaidMonth,
-      amount: amount,
-      notes: newUnpaidNotes,
-      recordedDate: new Date().toISOString()
+    try {
+      setLoadingUnpaid(true)
+      const newUnpaid = await createUnpaidAmount({
+        customer: customer.id,
+        month: newUnpaidMonth,
+        amount: amount,
+        notes: newUnpaidNotes || ''
+      })
+      
+      // Add to local state
+      const formattedUnpaid = {
+        id: newUnpaid.id,
+        month: newUnpaid.month,
+        amount: Number(newUnpaid.amount),
+        notes: newUnpaid.notes || '',
+        recordedDate: newUnpaid.recorded_date
+      }
+      setUnpaidAmounts([...unpaidAmounts, formattedUnpaid])
+      
+      // Reset form
+      setNewUnpaidMonth('')
+      setNewUnpaidAmount('')
+      setNewUnpaidNotes('')
+      
+      alert(`Unpaid amount recorded for ${newUnpaidMonth}: Rs ${amount}`)
+    } catch (error) {
+      alert('Failed to record unpaid amount. Please try again.')
+      console.error('Error creating unpaid amount:', error)
+    } finally {
+      setLoadingUnpaid(false)
     }
-    
-    setUnpaidAmounts([...unpaidAmounts, newUnpaid])
-    
-    // Reset form
-    setNewUnpaidMonth('')
-    setNewUnpaidAmount('')
-    setNewUnpaidNotes('')
-    
-    alert(`Unpaid amount recorded for ${newUnpaidMonth}: Rs ${amount}`)
   }
 
-  const handleRemoveUnpaidAmount = (index: number) => {
-    const unpaidToRemove = unpaidAmounts[index]
-    setUnpaidAmounts(unpaidAmounts.filter((_, i) => i !== index))
-    alert(`Removed unpaid amount for ${unpaidToRemove.month}: Rs ${unpaidToRemove.amount}`)
+  const handleRemoveUnpaidAmount = async (unpaidId: string) => {
+    if (!customer) return
+    
+    const unpaidToRemove = unpaidAmounts.find(u => u.id === unpaidId)
+    if (!unpaidToRemove) return
+    
+    if (!confirm(`Remove unpaid amount for ${unpaidToRemove.month}: Rs ${unpaidToRemove.amount}?`)) {
+      return
+    }
+    
+    try {
+      setLoadingUnpaid(true)
+      await deleteUnpaidAmount(unpaidId)
+      
+      // Remove from local state
+      setUnpaidAmounts(unpaidAmounts.filter((unpaid) => unpaid.id !== unpaidId))
+      
+      alert(`Removed unpaid amount for ${unpaidToRemove.month}: Rs ${unpaidToRemove.amount}`)
+    } catch (error) {
+      alert('Failed to remove unpaid amount. Please try again.')
+      console.error('Error deleting unpaid amount:', error)
+    } finally {
+      setLoadingUnpaid(false)
+    }
   }
 
   const getTotalUnpaidAmount = () => {
@@ -732,10 +789,10 @@ export function EditCustomerModal({
               <div className="flex justify-end">
                 <Button
                   onClick={handleAddUnpaidAmount}
-                  disabled={!newUnpaidAmount || !newUnpaidMonth}
+                  disabled={!newUnpaidAmount || !newUnpaidMonth || loadingUnpaid}
                   className="bg-red-600 hover:bg-red-700"
                 >
-                  Add Unpaid Amount
+                  {loadingUnpaid ? 'Adding...' : 'Add Unpaid Amount'}
                 </Button>
               </div>
             </div>
@@ -745,8 +802,8 @@ export function EditCustomerModal({
               <div className="bg-white rounded-lg p-4">
                 <h4 className="text-sm font-medium text-red-800 mb-3">Tracked Unpaid Amounts</h4>
                 <div className="space-y-2">
-                  {unpaidAmounts.map((unpaid, index) => (
-                    <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
+                  {unpaidAmounts.map((unpaid) => (
+                    <div key={unpaid.id} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
                       <div className="flex-1">
                         <div className="flex items-center gap-3">
                           <span className="text-sm font-medium text-red-800">{unpaid.month}</span>
@@ -762,10 +819,11 @@ export function EditCustomerModal({
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => handleRemoveUnpaidAmount(index)}
+                        onClick={() => handleRemoveUnpaidAmount(unpaid.id)}
+                        disabled={loadingUnpaid}
                         className="text-red-600 hover:text-red-700 hover:bg-red-100 border-red-300"
                       >
-                        Remove
+                        {loadingUnpaid ? 'Removing...' : 'Remove'}
                       </Button>
                     </div>
                   ))}

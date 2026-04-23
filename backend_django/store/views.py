@@ -10,10 +10,10 @@ from django.db.models.functions import TruncMonth
 from datetime import datetime, timedelta
 from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
-from .models import Customer, Product, Sale, SaleItem, Payment, Expense, CustomerProfile
+from .models import Customer, Product, Sale, SaleItem, Payment, Expense, CustomerProfile, UnpaidAmount
 from .serializers import (
     CustomerSerializer, ProductSerializer, SaleSerializer,
-    SaleItemSerializer, PaymentSerializer, ExpenseSerializer
+    SaleItemSerializer, PaymentSerializer, ExpenseSerializer, UnpaidAmountSerializer
 )
 
 class CustomerViewSet(viewsets.ModelViewSet):
@@ -149,6 +149,17 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.all()
     serializer_class = ExpenseSerializer
 
+class UnpaidAmountViewSet(viewsets.ModelViewSet):
+    queryset = UnpaidAmount.objects.all()
+    serializer_class = UnpaidAmountSerializer
+
+    def get_queryset(self):
+        # Filter by customer if customer_id is provided
+        customer_id = self.request.query_params.get('customer_id')
+        if customer_id:
+            return UnpaidAmount.objects.filter(customer_id=customer_id)
+        return super().get_queryset()
+
 @api_view(['GET'])
 def bootstrap(request):
     """Get all data for the frontend"""
@@ -280,3 +291,37 @@ def my_sales(request):
         .order_by("-date")
     )
     return Response(SaleSerializer(sales, many=True).data)
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def my_unpaid(request):
+    """
+    Customer portal: returns unpaid amounts for the logged-in customer.
+    Includes both sales unpaid amounts and tracked previous unpaid amounts.
+    """
+    user = request.user
+    if not hasattr(user, "customer") or not user.customer:
+        return Response({"detail": "No customer account linked to this user."}, status=status.HTTP_400_BAD_REQUEST)
+    
+    customer = user.customer
+    
+    # Calculate sales unpaid amount
+    sales = Sale.objects.filter(customer=customer)
+    total_sales = sales.aggregate(total=Sum('totalAmount'))['total'] or 0
+    total_paid = sales.aggregate(paid=Sum('paidAmount'))['paid'] or 0
+    sales_unpaid = total_sales - total_paid
+    
+    # Calculate tracked unpaid amounts from UnpaidAmount model
+    unpaid_amounts = UnpaidAmount.objects.filter(customer=customer)
+    tracked_unpaid = unpaid_amounts.aggregate(total=Sum('amount'))['total'] or 0
+    
+    total_unpaid = sales_unpaid + tracked_unpaid
+    
+    return Response({
+        "sales_unpaid": sales_unpaid,
+        "tracked_unpaid": tracked_unpaid,
+        "total_unpaid": total_unpaid,
+        "sales_total": total_sales,
+        "sales_paid": total_paid,
+        "unpaid_amounts": UnpaidAmountSerializer(unpaid_amounts, many=True).data
+    })

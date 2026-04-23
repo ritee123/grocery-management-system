@@ -137,3 +137,18 @@ class CustomerProfile(models.Model):
 
     def __str__(self):
         return f"Profile({self.user_id})"
+
+class UnpaidAmount(models.Model):
+    id = models.CharField(max_length=36, primary_key=True, default=uuid.uuid4, editable=False)
+    customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='unpaid_amounts')
+    month = models.CharField(max_length=20)  # Format: "2025-03"
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    notes = models.TextField(blank=True, default='')
+    recorded_date = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'unpaid_amounts'
+        unique_together = ['customer', 'month']  # One unpaid amount per customer per month
+
+    def __str__(self):
+        return f"{self.customer.name} - {self.month}: Rs {self.amount}"

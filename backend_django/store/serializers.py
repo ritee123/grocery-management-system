@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Customer, Product, Sale, SaleItem, Payment, Expense
+from .models import Customer, Product, Sale, SaleItem, Payment, Expense, UnpaidAmount
 
 class CustomerSerializer(serializers.ModelSerializer):
     username = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -41,4 +41,9 @@ class SaleSerializer(serializers.ModelSerializer):
 class ExpenseSerializer(serializers.ModelSerializer):
     class Meta:
         model = Expense
+        fields = '__all__'
+
+class UnpaidAmountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UnpaidAmount
         fields = '__all__'
