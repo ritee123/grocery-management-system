@@ -19,6 +19,7 @@ export interface Product {
 }
 
 export interface SaleItem {
+  id: string
   productId: string
   productName: string
   quantity: number
@@ -151,6 +152,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p1', amount: 630, method: 'cash', date: getDateWithOffset(0, 10, 30) }],
     items: [
       {
+        id: 'si-1-1',
         productId: '1',
         productName: 'Fresh Milk',
         quantity: 2,
@@ -158,6 +160,7 @@ export const mockSales: Sale[] = [
         subtotal: 300,
       },
       {
+        id: 'si-1-2',
         productId: '2',
         productName: 'Wheat Bread',
         quantity: 2,
@@ -165,6 +168,7 @@ export const mockSales: Sale[] = [
         subtotal: 160,
       },
       {
+        id: 'si-1-3',
         productId: '5',
         productName: 'Eggs (Dozen)',
         quantity: 1,
@@ -185,6 +189,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p2', amount: 900, method: 'online', date: getDateWithOffset(0, 14, 15) }],
     items: [
       {
+        id: 'si-2-1',
         productId: '3',
         productName: 'Fresh Vegetables Bundle',
         quantity: 2,
@@ -192,6 +197,7 @@ export const mockSales: Sale[] = [
         subtotal: 600,
       },
       {
+        id: 'si-2-2',
         productId: '4',
         productName: 'Chicken Breast',
         quantity: 1,
@@ -212,6 +218,7 @@ export const mockSales: Sale[] = [
     payments: [],
     items: [
       {
+        id: 'si-3-1',
         productId: '1',
         productName: 'Fresh Milk',
         quantity: 2,
@@ -219,6 +226,7 @@ export const mockSales: Sale[] = [
         subtotal: 300,
       },
       {
+        id: 'si-3-2',
         productId: '5',
         productName: 'Eggs (Dozen)',
         quantity: 1,
@@ -240,6 +248,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p4', amount: 450, method: 'online', date: getDateWithOffset(-1, 11, 0) }],
     items: [
       {
+        id: 'si-4-1',
         productId: '4',
         productName: 'Chicken Breast',
         quantity: 1,
@@ -260,6 +269,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p5', amount: 200, method: 'cash', date: getDateWithOffset(-1, 17, 0) }],
     items: [
       {
+        id: 'si-5-1',
         productId: '1',
         productName: 'Fresh Milk',
         quantity: 1,
@@ -267,6 +277,7 @@ export const mockSales: Sale[] = [
         subtotal: 150,
       },
       {
+        id: 'si-5-2',
         productId: '2',
         productName: 'Wheat Bread',
         quantity: 1,
@@ -274,6 +285,7 @@ export const mockSales: Sale[] = [
         subtotal: 80,
       },
       {
+        id: 'si-5-3',
         productId: '1',
         productName: 'Fresh Milk',
         quantity: 1,
@@ -295,6 +307,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p6', amount: 750, method: 'online', date: getDateWithOffset(-2, 13, 0) }],
     items: [
       {
+        id: 'si-6-1',
         productId: '3',
         productName: 'Fresh Vegetables Bundle',
         quantity: 1,
@@ -302,6 +315,7 @@ export const mockSales: Sale[] = [
         subtotal: 300,
       },
       {
+        id: 'si-6-2',
         productId: '4',
         productName: 'Chicken Breast',
         quantity: 1,
@@ -322,6 +336,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p7', amount: 280, method: 'cash', date: getDateWithOffset(-2, 9, 15) }],
     items: [
       {
+        id: 'si-7-1',
         productId: '2',
         productName: 'Wheat Bread',
         quantity: 1,
@@ -329,6 +344,7 @@ export const mockSales: Sale[] = [
         subtotal: 80,
       },
       {
+        id: 'si-7-2',
         productId: '5',
         productName: 'Eggs (Dozen)',
         quantity: 1,
@@ -350,6 +366,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p8', amount: 600, method: 'cash', date: getDateWithOffset(-3, 10, 45) }],
     items: [
       {
+        id: 'si-8-1',
         productId: '3',
         productName: 'Fresh Vegetables Bundle',
         quantity: 2,
@@ -371,6 +388,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p9', amount: 100, method: 'cash', date: getDateWithOffset(-3, 11, 0) }],
     items: [
       {
+        id: 'si-9-1',
         productId: '1',
         productName: 'Fresh Milk',
         quantity: 1,
@@ -378,6 +396,7 @@ export const mockSales: Sale[] = [
         subtotal: 150,
       },
       {
+        id: 'si-9-2',
         productId: '5',
         productName: 'Eggs (Dozen)',
         quantity: 1,
@@ -398,6 +417,7 @@ export const mockSales: Sale[] = [
     payments: [{ id: 'p10', amount: 530, method: 'online', date: getDateWithOffset(-5, 12, 30) }],
     items: [
       {
+        id: 'si-10-1',
         productId: '2',
         productName: 'Wheat Bread',
         quantity: 1,
@@ -405,6 +425,7 @@ export const mockSales: Sale[] = [
         subtotal: 80,
       },
       {
+        id: 'si-10-2',
         productId: '4',
         productName: 'Chicken Breast',
         quantity: 1,

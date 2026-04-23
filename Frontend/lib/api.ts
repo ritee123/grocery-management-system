@@ -315,17 +315,9 @@ export async function createPayment(payload: {
 export async function updateSale(
   id: string,
   payload: Partial<{
-    paid_amount: number
-    payment_status: 'paid' | 'unpaid' | 'partial'
+    paid_amount?: number
+    payment_status?: 'paid' | 'unpaid' | 'partial'
     date?: string
-    items?: Array<{
-      id: string
-      productName: string
-      unitPrice: number
-      quantity: number
-      subtotal: number
-    }>
-    totalAmount?: number
   }>
 ) {
   return await patchJson(`/api/sales/${id}/`, payload)
