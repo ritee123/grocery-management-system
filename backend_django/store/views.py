@@ -155,7 +155,7 @@ class UnpaidAmountViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         # Filter by customer if customer_id is provided
-        customer_id = self.request.query_params.get('customer_id')
+        customer_id = self.request.GET.get('customer_id')
         if customer_id:
             return UnpaidAmount.objects.filter(customer_id=customer_id)
         return super().get_queryset()
