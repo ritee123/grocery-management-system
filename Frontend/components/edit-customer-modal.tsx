@@ -310,45 +310,65 @@ export function EditCustomerModal({
             </div>
           </div>
 
-          {/* Record Payment Section */}
-          <div className="bg-muted/30 p-4 rounded-lg space-y-4">
-            <h3 className="font-semibold text-base">Due Payment</h3>
+          {/* Current Due Payment Section */}
+          <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg space-y-4">
+            <h3 className="font-semibold text-base text-blue-800">Current Due Payment</h3>
             <div className="flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Outstanding amount</p>
-              <p className="text-base font-semibold text-orange-600">Rs {stats.unpaidAmount.toLocaleString()}</p>
+              <p className="text-sm text-blue-700">Outstanding amount for current purchases</p>
+              <div className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                Current dues
+              </div>
             </div>
 
             {hasOutstanding ? (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(e.target.value)}
-                  placeholder="Enter paid amount"
-                  className="bg-white"
-                />
-                <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'cash' | 'online')}>
-                  <SelectTrigger className="bg-white">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="cash">Cash</SelectItem>
-                    <SelectItem value="online">Online</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Button
-                  onClick={handleSubmitPayment}
-                  disabled={savingPayment || !Number.isFinite(enteredAmount) || enteredAmount <= 0}
-                >
-                  {savingPayment ? 'Recording...' : 'Record Payment'}
-                </Button>
-              </div>
+              <>
+                <div className="flex items-center justify-between bg-white rounded-lg p-3">
+                  <p className="text-sm text-blue-700">Total Outstanding:</p>
+                  <p className="text-lg font-bold text-blue-800">Rs {stats.unpaidAmount.toLocaleString()}</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-blue-700 mb-1">Amount (Rs)</label>
+                    <Input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={paymentAmount}
+                      onChange={(e) => setPaymentAmount(e.target.value)}
+                      placeholder="Enter paid amount"
+                      className="bg-white border-blue-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-blue-700 mb-1">Payment Method</label>
+                    <Select value={paymentMethod} onValueChange={(value) => setPaymentMethod(value as 'cash' | 'online')}>
+                      <SelectTrigger className="bg-white border-blue-300">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cash">Cash</SelectItem>
+                        <SelectItem value="online">Online</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="lg:col-span-2 flex items-end">
+                    <Button
+                      onClick={handleSubmitPayment}
+                      disabled={savingPayment || !Number.isFinite(enteredAmount) || enteredAmount <= 0}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                    >
+                      {savingPayment ? 'Recording...' : 'Record Current Payment'}
+                    </Button>
+                  </div>
+                </div>
+              </>
             ) : (
-              <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
-                All dues are cleared for this customer.
-              </p>
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                <p className="text-sm text-green-700 font-medium">
+                  ✅ All current dues are cleared for this customer.
+                </p>
+              </div>
             )}
           </div>
 
