@@ -418,10 +418,6 @@ export default function CustomersPage() {
         sales={sales}
         isOpen={isDetailModalOpen}
         onClose={() => setIsDetailModalOpen(false)}
-        savingPayment={savingPayment}
-        onRecordPayment={handleCustomerPayment}
-        onUpdatePaymentRecord={handleUpdatePaymentRecord}
-        onDeletePaymentRecord={handleDeletePaymentRecord}
         onEditCustomer={(customer) => {
           setIsDetailModalOpen(false)
           handleEdit(customer)
@@ -434,6 +430,10 @@ export default function CustomersPage() {
         customer={editingCustomer}
         customerSales={sales.filter(sale => sale.customerId === editingCustomer?.id)}
         onUpdateCustomer={handleUpdateCustomer}
+        savingPayment={savingPayment}
+        onRecordPayment={handleCustomerPayment}
+        onUpdatePaymentRecord={handleUpdatePaymentRecord}
+        onDeletePaymentRecord={handleDeletePaymentRecord}
       />
       <div className="p-6 space-y-6">
       {/* Header */}
