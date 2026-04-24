@@ -170,6 +170,8 @@ export function EditCustomerModal({
     setPaymentAmount('')
   }
 
+  
+  
   const handleUpdateLoginCredentials = async () => {
     if (!customer) return
     
@@ -443,7 +445,7 @@ export function EditCustomerModal({
             </div>
           </div>
 
-                    {/* Payment Transactions Section */}
+          {/* Payment Transactions Section */}
           <div className="bg-muted/30 p-4 rounded-lg space-y-3">
             <h3 className="font-semibold text-base">Payment Transactions</h3>
             {sortedPaymentTransactions.length > 0 ? (
