@@ -170,8 +170,6 @@ export function EditCustomerModal({
     setPaymentAmount('')
   }
 
-  
-  
   const handleUpdateLoginCredentials = async () => {
     if (!customer) return
     
