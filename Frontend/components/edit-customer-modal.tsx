@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Edit, Phone, Mail, MapPin, Calendar, DollarSign, Trash2 } from 'lucide-react'
+import { Edit, Phone, Mail, MapPin, Calendar, DollarSign, Trash2, Eye, EyeOff } from 'lucide-react'
 import { Customer, Sale } from '@/lib/store'
 import { format } from 'date-fns'
 import { fetchUnpaidAmounts, createUnpaidAmount, deleteUnpaidAmount } from '@/lib/api'
@@ -73,6 +73,7 @@ export function EditCustomerModal({
   const [loginUsername, setLoginUsername] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
   const [hasLoginCredentials, setHasLoginCredentials] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     if (customer) {
@@ -461,13 +462,28 @@ export function EditCustomerModal({
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-purple-700 mb-1">New Password</label>
-                      <Input
-                        type="password"
-                        value={loginPassword}
-                        onChange={(e) => setLoginPassword(e.target.value)}
-                        placeholder="Enter new password"
-                        className="bg-white border-purple-300"
-                      />
+                      <div className="relative">
+                        <Input
+                          type={showPassword ? "text" : "password"}
+                          value={loginPassword}
+                          onChange={(e) => setLoginPassword(e.target.value)}
+                          placeholder="Enter new password"
+                          className="bg-white border-purple-300 pr-10"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowPassword(!showPassword)}
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4 text-purple-600" />
+                          ) : (
+                            <Eye className="h-4 w-4 text-purple-600" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </div>
                   <div className="flex justify-end mt-3">
@@ -496,13 +512,28 @@ export function EditCustomerModal({
                   </div>
                   <div>
                     <label className="block text-xs font-medium text-purple-700 mb-1">Password</label>
-                    <Input
-                      type="password"
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="Enter password for login"
-                      className="bg-white border-purple-300"
-                    />
+                    <div className="relative">
+                      <Input
+                        type={showPassword ? "text" : "password"}
+                        value={loginPassword}
+                        onChange={(e) => setLoginPassword(e.target.value)}
+                        placeholder="Enter password for login"
+                        className="bg-white border-purple-300 pr-10"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                        onClick={() => setShowPassword(!showPassword)}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4 text-purple-600" />
+                        ) : (
+                          <Eye className="h-4 w-4 text-purple-600" />
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
                 <div className="flex justify-end mt-3">
