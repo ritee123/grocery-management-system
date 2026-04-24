@@ -563,7 +563,7 @@ export function EditCustomerModal({
               </div>
               <div className="bg-white rounded-lg p-3 text-center">
                 <div className="text-2xl font-bold text-orange-600">Rs {stats.unpaidAmount.toLocaleString()}</div>
-                <div className="text-xs text-muted-foreground">Unpaid Amount</div>
+                <div className="text-xs text-muted-foreground">Sales Unpaid</div>
               </div>
               <div className="bg-white rounded-lg p-3 text-center">
                 <div className="text-sm font-semibold text-gray-600">
@@ -572,6 +572,35 @@ export function EditCustomerModal({
                 <div className="text-xs text-muted-foreground">Last Purchase</div>
               </div>
             </div>
+          </div>
+
+          {/* Unpaid Amount Tracking Statistics */}
+          <div className="bg-red-50 border border-red-200 p-4 rounded-lg">
+            <h3 className="font-semibold text-base text-red-800 mb-4">Unpaid Amount Tracking</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-white rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-red-600">Rs {getTotalUnpaidAmount().toLocaleString()}</div>
+                <div className="text-xs text-red-600">Total Tracked Unpaid</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-orange-600">{unpaidAmounts.length}</div>
+                <div className="text-xs text-orange-600">Unpaid Records</div>
+              </div>
+              <div className="bg-white rounded-lg p-3 text-center">
+                <div className="text-2xl font-bold text-purple-600">
+                  Rs {(stats.unpaidAmount + getTotalUnpaidAmount()).toLocaleString()}
+                </div>
+                <div className="text-xs text-purple-600">Total Outstanding</div>
+              </div>
+            </div>
+            {unpaidAmounts.length > 0 && (
+              <div className="mt-3 p-2 bg-red-100 rounded">
+                <p className="text-xs text-red-700">
+                  <strong>Recent unpaid amounts:</strong> {unpaidAmounts.slice(0, 3).map(u => `${u.month}: Rs ${u.amount}`).join(', ')}
+                  {unpaidAmounts.length > 3 && ` +${unpaidAmounts.length - 3} more`}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Current Due Payment Section */}
