@@ -34,6 +34,7 @@ import {
   Users,
   DollarSign,
   Eye,
+  EyeOff,
 } from 'lucide-react'
 import {
   Select,
@@ -80,6 +81,7 @@ export default function CustomersPage() {
   const [savingPayment, setSavingPayment] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+  const [showPassword, setShowPassword] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -572,13 +574,28 @@ export default function CustomersPage() {
                 </div>
                 <div>
                   <label className="text-sm font-medium">Password <span className="text-red-500">*</span></label>
-                  <Input
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Enter password for login"
-                    type="password"
-                    className="mt-2 bg-white"
-                  />
+                  <div className="relative mt-2">
+                    <Input
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder="Enter password for login"
+                      type={showPassword ? "text" : "password"}
+                      className="bg-white pr-10"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? (
+                        <EyeOff className="h-4 w-4 text-gray-600" />
+                      ) : (
+                        <Eye className="h-4 w-4 text-gray-600" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
               <p className="text-xs text-gray-500 mt-2">
